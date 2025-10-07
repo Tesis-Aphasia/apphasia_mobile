@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'register_viewmodel.dart';
 
-class RegisterMainScreen extends StatelessWidget {
+class RegisterMainScreen extends StatefulWidget {
   final bool showSuccess;
-
   const RegisterMainScreen({super.key, this.showSuccess = false});
+
+  @override
+  State<RegisterMainScreen> createState() => _RegisterMainScreenState();
+}
+
+class _RegisterMainScreenState extends State<RegisterMainScreen> {
+  final TextEditingController _idCtrl = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -32,9 +40,8 @@ class RegisterMainScreen extends StatelessWidget {
                 ),
               ),
 
-              // --- Contenido dinámico ---
               Expanded(
-                child: showSuccess
+                child: widget.showSuccess
                     ? _buildSuccessContent(context)
                     : _buildIntroContent(context),
               ),
@@ -46,9 +53,11 @@ class RegisterMainScreen extends StatelessWidget {
   }
 
   // ===========================================================
-  //                  CONTENIDO DE INICIO
+  //             INICIO DE REGISTRO CON ID PACIENTE
   // ===========================================================
   Widget _buildIntroContent(BuildContext context) {
+    final registerVM = Provider.of<RegisterViewModel>(context, listen: false);
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -70,9 +79,37 @@ class RegisterMainScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 40),
+
+        // --- Campo de Identificador ---
+        TextField(
+          controller: _idCtrl,
+          decoration: InputDecoration(
+            labelText: 'Identificador de paciente',
+            hintText: 'Ejemplo: paciente001',
+            filled: true,
+            fillColor: Colors.orange.shade50,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+
         // --- Botón principal ---
         ElevatedButton(
           onPressed: () {
+            if (_idCtrl.text.trim().isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Por favor ingresa un identificador.')),
+              );
+              return;
+            }
+
+            // Guardar ID en el ViewModel
+            registerVM.userId = _idCtrl.text.trim();
+
+            // Ir a pantalla de datos personales
             Navigator.pushNamed(context, '/register-personal');
           },
           style: ElevatedButton.styleFrom(
@@ -92,6 +129,7 @@ class RegisterMainScreen extends StatelessWidget {
             ),
           ),
         ),
+
         const SizedBox(height: 16),
         // --- Botón secundario ---
         TextButton(
@@ -110,7 +148,7 @@ class RegisterMainScreen extends StatelessWidget {
   }
 
   // ===========================================================
-  //                  CONTENIDO DE ÉXITO
+  //               CONFIRMACIÓN DE REGISTRO EXITOSO
   // ===========================================================
   Widget _buildSuccessContent(BuildContext context) {
     return Column(

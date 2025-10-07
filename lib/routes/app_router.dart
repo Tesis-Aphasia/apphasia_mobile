@@ -3,10 +3,17 @@ import '../presentation/screens/register/register_main_screen.dart';
 import '../presentation/screens/register/register_personal_screen.dart';
 import '../presentation/screens/register/register_family_screen.dart';
 import '../presentation/screens/register/register_routine_screen.dart';
+import '../presentation/screens/login/login_screen.dart';
+import '../presentation/screens/menu/menu_screen.dart';
+import '../presentation/screens/landing/landing_screen.dart';
+
 
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
+
+      case '/landing':
+        return MaterialPageRoute(builder: (_) => const LandingScreen());
 
       // --- Registro ---
       case '/register-main':
@@ -25,6 +32,13 @@ class AppRouter {
         return MaterialPageRoute(
           builder: (_) => const RegisterMainScreen(showSuccess: true),
         );
+
+      case '/login':
+        return MaterialPageRoute(builder: (_) => const LoginScreen());
+
+      case '/menu':
+        return MaterialPageRoute(builder: (_) => const MenuScreen());
+
 
       // --- Fallback (ruta no encontrada) ---
       default:
