@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "835895355070",
+    "project_id": "apphasia-7a930",
+    "storage_bucket": "apphasia-7a930.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:835895355070:android:b6c2e5d2a8532fcd13a0ef",
+        "android_client_info": {
+          "package_name": "com.example.aphasia_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB6YpL_3oJ9Cep4eOibzIBs410Lc5vNZ7s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

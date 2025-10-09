@@ -1,3 +1,14 @@
+// 🔸 ESTE BLOQUE ES OBLIGATORIO PARA RECONOCER "classpath"
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.google.gms:google-services:4.3.15") // ✅ aquí va
+    }
+}
+
 allprojects {
     repositories {
         google()

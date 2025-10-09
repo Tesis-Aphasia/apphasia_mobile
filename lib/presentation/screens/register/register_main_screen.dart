@@ -213,29 +213,29 @@ class _RegisterMainScreenState extends State<RegisterMainScreen> {
         ),
         const SizedBox(height: 16),
 
-        // --- Botón secundario ---
-        OutlinedButton(
-          onPressed: () {
-            Navigator.popUntil(context, ModalRoute.withName('/landing'));
-          },
-          style: OutlinedButton.styleFrom(
-            backgroundColor: Colors.orange.shade50,
-            side: BorderSide.none,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            minimumSize: const Size(double.infinity, 50),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          child: Text(
-            'Volver al inicio',
-            style: TextStyle(
-              color: Colors.orange.shade700,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-        ),
+        // // --- Botón secundario ---
+        // OutlinedButton(
+        //   onPressed: () {
+        //     Navigator.popUntil(context, ModalRoute.withName('/landing'));
+        //   },
+        //   style: OutlinedButton.styleFrom(
+        //     backgroundColor: Colors.orange.shade50,
+        //     side: BorderSide.none,
+        //     padding: const EdgeInsets.symmetric(vertical: 16),
+        //     minimumSize: const Size(double.infinity, 50),
+        //     shape: RoundedRectangleBorder(
+        //       borderRadius: BorderRadius.circular(12),
+        //     ),
+        //   ),
+        //   child: Text(
+        //     'Volver al inicio',
+        //     style: TextStyle(
+        //       color: Colors.orange.shade700,
+        //       fontWeight: FontWeight.bold,
+        //       fontSize: 16,
+        //     ),
+        //   ),
+        // ),
       ],
     );
   }

@@ -3,8 +3,17 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'routes/app_router.dart';
 import 'presentation/screens/register/register_viewmodel.dart';
+import 'firebase_options.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+Future<void> main() async {
+  // 👇 Asegura la inicialización antes de usar Firebase
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(
     ChangeNotifierProvider(
       create: (_) => RegisterViewModel(),
@@ -28,8 +37,8 @@ class RehabilitaApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [
-        Locale('es', 'ES'), // Español
-        Locale('en', 'US'), // Inglés (por compatibilidad)
+        Locale('es', 'ES'),
+        Locale('en', 'US'),
       ],
 
       theme: ThemeData(
