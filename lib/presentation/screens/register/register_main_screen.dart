@@ -57,6 +57,7 @@ class _RegisterMainScreenState extends State<RegisterMainScreen> {
   // ===========================================================
   Widget _buildIntroContent(BuildContext context) {
     final registerVM = Provider.of<RegisterViewModel>(context, listen: false);
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -71,7 +72,7 @@ class _RegisterMainScreenState extends State<RegisterMainScreen> {
         ),
         const SizedBox(height: 12),
         Text(
-          'Completa la información con ayuda de tu cuidador si lo necesitas.',
+          'Completa tu correo electrónico para continuar.',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 16,
@@ -80,12 +81,13 @@ class _RegisterMainScreenState extends State<RegisterMainScreen> {
         ),
         const SizedBox(height: 40),
 
-        // --- Campo de Identificador ---
+        // --- Campo de correo ---
         TextField(
           controller: _idCtrl,
+          keyboardType: TextInputType.emailAddress,
           decoration: InputDecoration(
-            labelText: 'Identificador de paciente',
-            hintText: 'Ejemplo: paciente001',
+            labelText: 'Correo electrónico',
+            hintText: 'Ejemplo: paciente@gmail.com',
             filled: true,
             fillColor: Colors.orange.shade50,
             border: OutlineInputBorder(
@@ -99,15 +101,17 @@ class _RegisterMainScreenState extends State<RegisterMainScreen> {
         // --- Botón principal ---
         ElevatedButton(
           onPressed: () {
-            if (_idCtrl.text.trim().isEmpty) {
+            final email = _idCtrl.text.trim();
+
+            if (email.isEmpty || !emailRegex.hasMatch(email)) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Por favor ingresa un identificador.')),
+                const SnackBar(content: Text('Por favor ingresa un correo válido.')),
               );
               return;
             }
 
-            // Guardar ID en el ViewModel
-            registerVM.userId = _idCtrl.text.trim();
+            // Guardar correo en el ViewModel
+            registerVM.userEmail = email;
 
             // Ir a pantalla de datos personales
             Navigator.pushNamed(context, '/register-personal');
@@ -131,6 +135,7 @@ class _RegisterMainScreenState extends State<RegisterMainScreen> {
         ),
 
         const SizedBox(height: 16),
+
         // --- Botón secundario ---
         TextButton(
           onPressed: () => Navigator.pop(context),
@@ -146,6 +151,7 @@ class _RegisterMainScreenState extends State<RegisterMainScreen> {
       ],
     );
   }
+
 
   // ===========================================================
   //               CONFIRMACIÓN DE REGISTRO EXITOSO

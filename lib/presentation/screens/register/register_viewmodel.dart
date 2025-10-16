@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class RegisterViewModel extends ChangeNotifier {
   // --- Control general del flujo ---
   bool isSaving = false;
-  String? userId; // se define cuando el paciente elige o se registra con un ID
+  String? userEmail; // ahora se usa el correo como identificador
 
   // --- Datos personales ---
   String nombre = '';
@@ -64,6 +64,7 @@ class RegisterViewModel extends ChangeNotifier {
 
   Map<String, dynamic> toJson() {
     return {
+      "email": userEmail,
       "personal": {
         "nombre": nombre,
         "fecha_nacimiento": fechaNacimiento,
@@ -89,8 +90,8 @@ class RegisterViewModel extends ChangeNotifier {
   // =====================================================
 
   Future<void> saveToFirebase() async {
-    if (userId == null || userId!.isEmpty) {
-      throw Exception("userId no definido");
+    if (userEmail == null || userEmail!.isEmpty) {
+      throw Exception("userEmail no definido");
     }
 
     isSaving = true;
@@ -100,8 +101,8 @@ class RegisterViewModel extends ChangeNotifier {
       final profileData = toJson();
 
       await FirebaseFirestore.instance
-          .collection('patients')
-          .doc(userId)
+          .collection('pacientes')
+          .doc(userEmail) // el email será el ID del documento
           .set(profileData);
 
       debugPrint("✅ Perfil de paciente guardado con éxito en Firebase.");
@@ -128,7 +129,7 @@ class RegisterViewModel extends ChangeNotifier {
     comidaFavorita = '';
     actividadFavorita = '';
     mascota = '';
-    userId = null;
+    userEmail = null;
     isSaving = false;
     notifyListeners();
   }

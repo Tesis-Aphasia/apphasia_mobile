@@ -88,7 +88,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       try {
                         // Buscar en Firestore si existe el usuario
                         final snapshot = await _firestore
-                            .collection('patients')
+                            .collection('pacientes')
                             .doc(userId)
                             .get();
 
@@ -103,7 +103,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         }
 
                         // Si existe, iniciar sesión (o simplemente continuar)
-                        registerVM.userId = userId;
+                        registerVM.userEmail = userId;
                         await Future.delayed(const Duration(milliseconds: 500));
 
                         Navigator.pushReplacementNamed(context, '/menu');

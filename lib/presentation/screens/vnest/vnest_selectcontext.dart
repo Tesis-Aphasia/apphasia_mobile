@@ -1,5 +1,7 @@
+import 'package:aphasia_mobile/presentation/screens/register/register_viewmodel.dart';
 import 'package:flutter/material.dart';
-import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import 'package:dio/dio.dart';
 import '../../../data/services/api_service.dart';
 
@@ -20,8 +22,42 @@ class _VnestSelectContextScreenState extends State<VnestSelectContextScreen> {
   String customContext = "";
   bool loading = false;
   String? error;
+  List<Map<String, dynamic>> contextos = [];
+
+  @override
+  void initState() {
+    super.initState();
+    fetchContextos();
+  }
+
+  /// 🔥 Trae los contextos desde Firebase
+  Future<void> fetchContextos() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance.collection('contextos').get();
+      final data = snapshot.docs.map((doc) {
+        final d = doc.data();
+        return {
+          'id': doc.id,
+          'contexto': d['contexto'] ?? d['nombre'] ?? 'Sin título',
+          'icon': Icons.article_rounded, // ícono por defecto
+        };
+      }).toList();
+
+      setState(() {
+        contextos = data;
+      });
+    } catch (e) {
+      debugPrint("Error cargando contextos: $e");
+      setState(() {
+        error = "No se pudieron cargar los contextos.";
+      });
+    }
+  }
 
   Future<void> sendRequest(String contextText) async {
+    final registerVM = Provider.of<RegisterViewModel>(context, listen: false);
+    final email = registerVM.userEmail;
+
     setState(() {
       loading = true;
       error = null;
@@ -30,28 +66,24 @@ class _VnestSelectContextScreenState extends State<VnestSelectContextScreen> {
     try {
       final response = await apiService.post(
         '/context/',
-        {"context": contextText, "nivel": "facil"},
+        {"context": contextText, "nivel": "facil", "email": email},
       );
 
-      // ✅ Si la respuesta fue exitosa
       if (response.statusCode == 200) {
-        final Map<String, dynamic> data =
-        Map<String, dynamic>.from(response.data);
+        final Map<String, dynamic> data = Map<String, dynamic>.from(response.data);
 
         Navigator.pushNamed(
           context,
           '/vnest-action',
           arguments: {
             ...data,
-            'context': contextText, // ✅ ya no causa conflicto
+            'context': contextText,
           },
         );
-      }
-      else {
+      } else {
         throw Exception("Error HTTP ${response.statusCode}");
       }
     } on DioException catch (e) {
-      // Manejo más robusto de errores
       setState(() {
         if (e.response != null) {
           error = "Error ${e.response?.statusCode}: ${e.response?.data}";
@@ -89,10 +121,7 @@ class _VnestSelectContextScreenState extends State<VnestSelectContextScreen> {
         ),
         title: const Text(
           "Selecciona un contexto",
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            color: Colors.black87,
-          ),
+          style: TextStyle(fontWeight: FontWeight.w700, color: Colors.black87),
         ),
         centerTitle: true,
       ),
@@ -102,86 +131,79 @@ class _VnestSelectContextScreenState extends State<VnestSelectContextScreen> {
           child: loading
               ? _buildLoading()
               : Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (error != null) _buildError(),
-              Expanded(
-                child: ListView(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildOption(
-                      id: "Ir a la tienda",
-                      icon: Icons.local_grocery_store_rounded,
-                      title: "Ir a la tienda",
+                    if (error != null) _buildError(),
+                    Expanded(
+                      child: contextos.isEmpty
+                          ? const Center(child: Text("Cargando contextos..."))
+                          : ListView(
+                              children: [
+                                for (var c in contextos)
+                                  _buildOption(
+                                    id: c['contexto'],
+                                    icon: c['icon'],
+                                    title: c['contexto'],
+                                  ),
+                                _buildCustomOption(),
+                              ],
+                            ),
                     ),
-                    _buildOption(
-                      id: "Cita médica",
-                      icon: Icons.local_hospital_rounded,
-                      title: "Cita médica",
-                    ),
-                    _buildOption(
-                      id: "Reunión familiar",
-                      icon: Icons.family_restroom_rounded,
-                      title: "Reunión familiar",
-                    ),
-                    _buildCustomOption(),
+                    const SizedBox(height: 16),
+                    _buildNextButton(),
                   ],
                 ),
-              ),
-              const SizedBox(height: 16),
-              _buildNextButton(),
-            ],
-          ),
         ),
       ),
     );
   }
 
   Widget _buildLoading() => Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        CircularProgressIndicator(color: orange, strokeWidth: 4),
-        const SizedBox(height: 20),
-        const Text(
-          "Creando el ejercicio…",
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: orange, strokeWidth: 4),
+            const SizedBox(height: 20),
+            const Text(
+              "Creando el ejercicio…",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Esto puede tardar unos segundos",
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+          ],
         ),
-        const SizedBox(height: 8),
-        const Text(
-          "Esto puede tardar unos segundos",
-          style: TextStyle(fontSize: 14, color: Colors.grey),
-        ),
-      ],
-    ),
-  );
+      );
 
   Widget _buildError() => Container(
-    margin: const EdgeInsets.only(bottom: 16),
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: Colors.red.shade50,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: Colors.red.shade200),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          error ?? "Error enviando el contexto",
-          style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w500),
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.red.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red.shade200),
         ),
-        const SizedBox(height: 8),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red.shade600,
-            foregroundColor: Colors.white,
-          ),
-          onPressed: handleNext,
-          child: const Text("Reintentar"),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              error ?? "Error enviando el contexto",
+              style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 8),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade600,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: handleNext,
+              child: const Text("Reintentar"),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 
   Widget _buildOption({
     required String id,

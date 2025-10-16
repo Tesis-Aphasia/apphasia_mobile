@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:permission_handler/permission_handler.dart';
 import '../register/register_viewmodel.dart';
 
 class SRExercisesScreen extends StatefulWidget {
@@ -25,21 +27,66 @@ class _SRExercisesScreenState extends State<SRExercisesScreen> {
   TextEditingController answerCtrl = TextEditingController();
   Timer? timer;
 
+  // === SPEECH TO TEXT ===
+  late stt.SpeechToText _speech;
+  bool _isListening = false;
+  String recognizedText = "";
+
   // === Inicialización ===
   @override
   void initState() {
     super.initState();
-    Future.microtask(_loadCards);
+    _speech = stt.SpeechToText();
+    Future.microtask(() async {
+      await _initSpeech();
+      await _loadCards();
+    });
   }
 
+  Future<void> _initSpeech() async {
+    var status = await Permission.microphone.request();
+    if (status.isGranted) {
+      await _speech.initialize(
+        onStatus: (val) => print('Speech status: $val'),
+        onError: (val) => print('Speech error: $val'),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Por favor habilita el micrófono para usar voz.")),
+      );
+    }
+  }
+
+  void _startListening() async {
+    bool available = await _speech.initialize();
+    if (available) {
+      setState(() => _isListening = true);
+      _speech.listen(
+        localeId: 'es_ES',
+        onResult: (result) {
+          setState(() {
+            recognizedText = result.recognizedWords;
+            answerCtrl.text = recognizedText; // Se llena automáticamente el campo
+          });
+        },
+      );
+    }
+  }
+
+  void _stopListening() async {
+    await _speech.stop();
+    setState(() => _isListening = false);
+  }
+
+  // === Carga de tarjetas ===
   Future<void> _loadCards() async {
-    final userId = Provider.of<RegisterViewModel>(context, listen: false).userId;
-    if (userId!.isEmpty) return;
+    final user_email = Provider.of<RegisterViewModel>(context, listen: false).userEmail;
+    if (user_email!.isEmpty) return;
 
     try {
       final snap = await FirebaseFirestore.instance
           .collection("sr_cards")
-          .where("user_id", isEqualTo: userId)
+          .where("user_id", isEqualTo: user_email)
           .get();
 
       final data = snap.docs.map((d) => {"id": d.id, ...d.data()}).toList();
@@ -82,6 +129,7 @@ class _SRExercisesScreenState extends State<SRExercisesScreen> {
     final isCorrect = userAns == correctAns;
 
     answerCtrl.clear();
+    recognizedText = "";
     final intervals = List<int>.from(currentCard!["intervals_sec"] ?? [15, 30, 60, 120, 240]);
     final nextIndex = isCorrect
         ? (cardState!["interval_index"] + 1).clamp(0, intervals.length - 1)
@@ -175,6 +223,7 @@ class _SRExercisesScreenState extends State<SRExercisesScreen> {
   void dispose() {
     timer?.cancel();
     answerCtrl.dispose();
+    _speech.stop();
     super.dispose();
   }
 
@@ -210,7 +259,7 @@ class _SRExercisesScreenState extends State<SRExercisesScreen> {
     }
 
     final intervals =
-    List<int>.from(currentCard!["intervals_sec"] ?? [15, 30, 60, 120, 240]);
+        List<int>.from(currentCard!["intervals_sec"] ?? [15, 30, 60, 120, 240]);
     final intervalLabel = mode == "timer"
         ? "Intervalo actual: ${intervals[cardState!["interval_index"]]}s"
         : "Base: ${intervals[cardState!["interval_index"]]}s — Próximo si aciertas: ${intervals[(cardState!["interval_index"] + 1).clamp(0, intervals.length - 1)]}s";
@@ -257,115 +306,132 @@ class _SRExercisesScreenState extends State<SRExercisesScreen> {
                 child: Center(
                   child: mode == "question"
                       ? Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        currentCard!["stimulus"] ?? "Sin pregunta",
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      TextField(
-                        controller: answerCtrl,
-                        decoration: InputDecoration(
-                          hintText: "Escribe tu respuesta...",
-                          filled: true,
-                          fillColor: Colors.orange.shade50,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: handleSubmit,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: orange,
-                          padding:
-                          const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: const Text(
-                          "Enviar",
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                      if (feedback.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 12),
-                          child: Text(
-                            feedback,
-                            style: TextStyle(
-                              color: feedback.startsWith("✅")
-                                  ? Colors.green.shade700
-                                  : Colors.red.shade700,
-                              fontWeight: FontWeight.bold,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              currentCard!["stimulus"] ?? "Sin pregunta",
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                        ),
-                    ],
-                  )
+                            const SizedBox(height: 20),
+                            TextField(
+                              controller: answerCtrl,
+                              decoration: InputDecoration(
+                                hintText: "Escribe o di tu respuesta...",
+                                filled: true,
+                                fillColor: Colors.orange.shade50,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _isListening
+                                        ? Icons.stop
+                                        : Icons.mic_none_rounded,
+                                    color: _isListening
+                                        ? Colors.red
+                                        : Colors.grey.shade700,
+                                  ),
+                                  onPressed: () {
+                                    _isListening
+                                        ? _stopListening()
+                                        : _startListening();
+                                  },
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: handleSubmit,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: orange,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: const Text(
+                                "Enviar",
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                            if (feedback.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 12),
+                                child: Text(
+                                  feedback,
+                                  style: TextStyle(
+                                    color: feedback.startsWith("✅")
+                                        ? Colors.green.shade700
+                                        : Colors.red.shade700,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        )
                       : mode == "timer"
-                      ? Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        feedback,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 20,
-                          color: feedback.startsWith("✅")
-                              ? Colors.green.shade700
-                              : Colors.red.shade700,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Repetiremos esta pregunta en $secondsLeft segundos",
-                        style: TextStyle(color: Colors.grey.shade600),
-                      ),
-                    ],
-                  )
-                      : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        "🎉 ¡Completaste esta pregunta!",
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Has superado el último intervalo (240s).",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey.shade600),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: handleNextCard,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: orange,
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 14, horizontal: 24),
-                          shape: RoundedRectangleBorder(
-                              borderRadius:
-                              BorderRadius.circular(12)),
-                        ),
-                        child: const Text(
-                          "Siguiente tarjeta",
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    ],
-                  ),
+                          ? Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  feedback,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 20,
+                                    color: feedback.startsWith("✅")
+                                        ? Colors.green.shade700
+                                        : Colors.red.shade700,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  "Repetiremos esta pregunta en $secondsLeft segundos",
+                                  style:
+                                      TextStyle(color: Colors.grey.shade600),
+                                ),
+                              ],
+                            )
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text(
+                                  "🎉 ¡Completaste esta pregunta!",
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  "Has superado el último intervalo (240s).",
+                                  textAlign: TextAlign.center,
+                                  style:
+                                      TextStyle(color: Colors.grey.shade600),
+                                ),
+                                const SizedBox(height: 16),
+                                ElevatedButton(
+                                  onPressed: handleNextCard,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: orange,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 14, horizontal: 24),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(12)),
+                                  ),
+                                  child: const Text(
+                                    "Siguiente tarjeta",
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              ],
+                            ),
                 ),
               ),
             ),

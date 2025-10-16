@@ -134,10 +134,10 @@ class _RegisterRoutineScreenState extends State<RegisterRoutineScreen> {
 
                         // 2️⃣ Guardar paciente en Firestore
                         await FirebaseFirestore.instance
-                            .collection("patients")
-                            .doc(registerVM.userId)
+                            .collection("pacientes")
+                            .doc(registerVM.userEmail)
                             .set({
-                          "user_id": registerVM.userId,
+                          "user_id": registerVM.userEmail,
                           "created_at":
                           DateTime.now().millisecondsSinceEpoch,
                           ...profileData,
@@ -148,7 +148,7 @@ class _RegisterRoutineScreenState extends State<RegisterRoutineScreen> {
                           final response = await apiService.post(
                             "/spaced-retrieval/",
                             {
-                              "user_id": registerVM.userId,
+                              "user_id": registerVM.userEmail,
                               "profile": profileData,
                             },
                           );

@@ -1,14 +1,58 @@
+import 'package:aphasia_mobile/data/services/api_service.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../register/register_viewmodel.dart';
 
 class VnestConclusionScreen extends StatelessWidget {
   final Map<String, dynamic> exercise;
 
   const VnestConclusionScreen({super.key, required this.exercise});
 
+  Future<void> _completeExercise(BuildContext context) async {
+    final registerVM = Provider.of<RegisterViewModel>(context, listen: false);
+    final apiService = ApiService();
+    final email = registerVM.userEmail;
+
+    final idEjercicio = exercise['id_ejercicio_base'] ?? exercise['id_ejercicio'] ?? "";
+    final contexto = exercise['context'] ?? exercise['contexto'] ?? "";
+
+    print("🔥 COMPLETANDO EJERCICIO: email=$email id=$idEjercicio contexto=$contexto"); // 👈 agrega esto
+
+
+    if (email == null || email.isEmpty || idEjercicio.isEmpty || contexto.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Faltan datos para completar el ejercicio.")),
+      );
+      return;
+    }
+
+    try {
+      final response = await apiService.post('/completar_ejercicio/', {
+        "email": email,
+        "id_ejercicio": idEjercicio,
+        "contexto": contexto,
+      });
+
+      if (response.statusCode == 200 && response.data["status"] == "success") {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("✅ Ejercicio completado con éxito")),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("⚠️ ${response.data["message"] ?? "Error al completar"}")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("❌ Error al completar: $e")),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final background = const Color(0xFFFEF9F4); // beige suave
-    final orange = const Color(0xFFFF8A00); // naranja principal
+    final background = const Color(0xFFFEF9F4);
+    final orange = const Color(0xFFFF8A00);
 
     final verbo = exercise['verbo'] ?? "—";
     final who = exercise['who'] ?? "—";
@@ -30,8 +74,6 @@ class VnestConclusionScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 30),
-
-              // 🎉 Encabezado animado
               AnimatedOpacity(
                 opacity: 1,
                 duration: const Duration(milliseconds: 600),
@@ -139,8 +181,8 @@ class VnestConclusionScreen extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () {
-                    // Reinicia el flujo completo:
+                  onPressed: () async {
+                    await _completeExercise(context);
                     Navigator.pushNamedAndRemoveUntil(
                         context, '/menu', (route) => false);
                   },
@@ -188,9 +230,7 @@ class VnestConclusionScreen extends StatelessWidget {
             flex: 5,
             child: Text(
               value,
-              style: const TextStyle(
-                color: Colors.black87,
-              ),
+              style: const TextStyle(color: Colors.black87),
             ),
           ),
         ],
