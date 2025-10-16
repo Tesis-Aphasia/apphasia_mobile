@@ -13,10 +13,8 @@ class VnestConclusionScreen extends StatelessWidget {
     final apiService = ApiService();
     final email = registerVM.userEmail;
 
-    final idEjercicio = exercise['id_ejercicio_base'] ?? exercise['id_ejercicio'] ?? "";
+    final idEjercicio = exercise['id_ejercicio_general'] ?? "";
     final contexto = exercise['context'] ?? exercise['contexto'] ?? "";
-
-    print("🔥 COMPLETANDO EJERCICIO: email=$email id=$idEjercicio contexto=$contexto"); // 👈 agrega esto
 
 
     if (email == null || email.isEmpty || idEjercicio.isEmpty || contexto.isEmpty) {

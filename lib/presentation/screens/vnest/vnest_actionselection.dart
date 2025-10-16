@@ -72,6 +72,7 @@ class _VnestActionSelectionScreenState extends State<VnestActionSelectionScreen>
       "pares": widget.exercise["pares"],
       "oraciones": widget.exercise["oraciones"],
       "context": widget.exercise["context"],
+      "id_ejercicio_general": widget.exercise["id_ejercicio_general"],
     };
 
     Navigator.pushNamed(

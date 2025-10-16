@@ -101,6 +101,7 @@ class _VnestSentenceExpansionScreenState extends State<VnestSentenceExpansionScr
         'why': selectedWhy,
         'when': selectedWhen,
         'sentence': buildSentence(),
+        'id_ejercicio_general': widget.data['id_ejercicio_general'] ?? "",
       },
     );
   }
