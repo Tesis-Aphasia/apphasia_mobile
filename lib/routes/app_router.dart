@@ -11,7 +11,7 @@ import '../presentation/screens/vnest/vnest_conclusion.dart';
 import '../presentation/screens/vnest/vnest_selectcontext.dart';
 import '../presentation/screens/vnest/vnest_actionselection.dart';
 import '../presentation/screens/vnest/vnest_sentenceevaluation.dart';
-import '../presentation/screens/vnest/vnest_sentenceexpansion.dart'; // 👈 importar la nueva pantalla
+import '../presentation/screens/vnest/vnest_sentenceexpansion.dart';
 
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
