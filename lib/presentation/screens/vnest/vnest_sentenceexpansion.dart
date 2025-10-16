@@ -7,17 +7,35 @@ class VnestSentenceExpansionScreen extends StatefulWidget {
   const VnestSentenceExpansionScreen({super.key, required this.data});
 
   @override
-  State<VnestSentenceExpansionScreen> createState() => _VnestSentenceExpansionScreenState();
+  State<VnestSentenceExpansionScreen> createState() =>
+      _VnestSentenceExpansionScreenState();
 }
 
-class _VnestSentenceExpansionScreenState extends State<VnestSentenceExpansionScreen> {
+class _VnestSentenceExpansionScreenState
+    extends State<VnestSentenceExpansionScreen> {
   final background = const Color(0xFFFEF9F4);
   final orange = const Color(0xFFFF8A00);
+  final Color colorSujeto = Colors.black87;
+  final Color colorVerbo = Colors.orange.shade700;
+  final Color colorObjeto = Colors.black87;
+  final Color colorDonde = Colors.blue.shade700;
+  final Color colorPorque = Colors.green.shade700;
+  final Color colorCuando = Colors.purple.shade700;
 
   late String verbo;
   late String who;
   late String what;
   late Map<String, dynamic> currentPair;
+
+  String capitalize(String s) {
+    if (s.isEmpty) return s;
+    return s[0].toUpperCase() + s.substring(1);
+  }
+
+  String decapitalize(String s) {
+    if (s.isEmpty) return s;
+    return s[0].toLowerCase() + s.substring(1);
+  }
 
   List<String> donde = [];
   List<String> porque = [];
@@ -43,7 +61,7 @@ class _VnestSentenceExpansionScreenState extends State<VnestSentenceExpansionScr
     // 🔎 buscar el par correcto
     final pares = (exercise['pares'] as List?) ?? [];
     currentPair = pares.firstWhere(
-          (p) => p['sujeto'] == who && p['objeto'] == what,
+      (p) => p['sujeto'] == who && p['objeto'] == what,
       orElse: () => {},
     );
 
@@ -75,15 +93,26 @@ class _VnestSentenceExpansionScreenState extends State<VnestSentenceExpansionScr
     return items;
   }
 
+  /// Función simple para conjugar presente indicativo 3ra persona singular
+  String conjugatePresentIndicative(String sujeto, String verbo) {
+    if (verbo.endsWith("ar")) return verbo.substring(0, verbo.length - 2) + "a";
+    if (verbo.endsWith("er")) return verbo.substring(0, verbo.length - 2) + "e";
+    if (verbo.endsWith("ir")) return verbo.substring(0, verbo.length - 2) + "e";
+    return verbo; // fallback
+  }
+
   String buildSentence() {
+    final verboConjugado = conjugatePresentIndicative(who, verbo);
+
     final parts = [
       who,
-      verbo,
+      verboConjugado, // usamos el verbo conjugado
       what,
       selectedWhere ?? '',
       selectedWhy ?? '',
       selectedWhen ?? ''
     ].where((p) => p.isNotEmpty).join(' ');
+
     return '$parts.';
   }
 
@@ -103,6 +132,44 @@ class _VnestSentenceExpansionScreenState extends State<VnestSentenceExpansionScr
         'sentence': buildSentence(),
         'id_ejercicio_general': widget.data['id_ejercicio_general'] ?? "",
       },
+    );
+  }
+
+    // Función para crear el RichText de la oración completa
+  Widget buildColoredSentence() {
+    final verboConjugado = conjugatePresentIndicative(who, verbo);
+
+    return RichText(
+      textAlign: TextAlign.center,
+      text: TextSpan(
+        children: [
+          if (who.isNotEmpty)
+            TextSpan(
+                text: "${capitalize(who)} ",
+                style: TextStyle(color: colorSujeto, fontWeight: FontWeight.w600)),
+          if (verboConjugado.isNotEmpty)
+            TextSpan(
+                text: "${decapitalize(verboConjugado)} ",
+                style: TextStyle(color: colorVerbo, fontWeight: FontWeight.w600)),
+          if (what.isNotEmpty)
+            TextSpan(
+                text: "${decapitalize(what)} ",
+                style: TextStyle(color: colorObjeto, fontWeight: FontWeight.w600)),
+          if (selectedWhere != null)
+            TextSpan(
+                text: "${decapitalize(selectedWhere!)} ",
+                style: TextStyle(color: colorDonde, fontWeight: FontWeight.w600)),
+          if (selectedWhy != null)
+            TextSpan(
+                text: "${decapitalize(selectedWhy!)} ",
+                style: TextStyle(color: colorPorque, fontWeight: FontWeight.w600)),
+          if (selectedWhen != null)
+            TextSpan(
+                text: "${decapitalize(selectedWhen!)}",
+                style: TextStyle(color: colorCuando, fontWeight: FontWeight.w600)),
+          TextSpan(text: ".", style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600)),
+        ],
+      ),
     );
   }
 
@@ -166,12 +233,15 @@ class _VnestSentenceExpansionScreenState extends State<VnestSentenceExpansionScr
               Expanded(
                 child: ListView(
                   children: [
-                    _buildSection("1. ¿DÓNDE?", donde, selectedWhere, correctDonde,
-                            (v) => setState(() => selectedWhere = v)),
-                    _buildSection("2. ¿POR QUÉ?", porque, selectedWhy, correctPorque,
-                            (v) => setState(() => selectedWhy = v)),
-                    _buildSection("3. ¿CUÁNDO?", cuando, selectedWhen, correctCuando,
-                            (v) => setState(() => selectedWhen = v)),
+                    _buildSection(
+                        "1. ¿DÓNDE?", donde, selectedWhere, correctDonde,
+                        (v) => setState(() => selectedWhere = v)),
+                    _buildSection(
+                        "2. ¿POR QUÉ?", porque, selectedWhy, correctPorque,
+                        (v) => setState(() => selectedWhy = v)),
+                    _buildSection(
+                        "3. ¿CUÁNDO?", cuando, selectedWhen, correctCuando,
+                        (v) => setState(() => selectedWhen = v)),
                   ],
                 ),
               ),
@@ -185,11 +255,12 @@ class _VnestSentenceExpansionScreenState extends State<VnestSentenceExpansionScr
   }
 
   Widget _buildHeaderCards() {
+    final verboConjugado = conjugatePresentIndicative(who, verbo);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         _smallCard("¿Quién?", who, Colors.black87),
-        _smallCard("Verbo", verbo, orange),
+        _smallCard("Verbo", verboConjugado, orange), // conjugado aquí
         _smallCard("¿Qué?", what, Colors.black87),
       ],
     );
@@ -285,7 +356,7 @@ class _VnestSentenceExpansionScreenState extends State<VnestSentenceExpansionScr
                   style: TextStyle(
                     color: textColor,
                     fontWeight:
-                    isSelected ? FontWeight.w700 : FontWeight.w500,
+                        isSelected ? FontWeight.w700 : FontWeight.w500,
                   ),
                 ),
               ),
@@ -316,18 +387,11 @@ class _VnestSentenceExpansionScreenState extends State<VnestSentenceExpansionScr
                     fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
               ),
               const SizedBox(height: 8),
-              Text(
-                buildSentence(),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: orange,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              buildColoredSentence(), // <-- RichText con colores
             ],
           ),
         ),
+
 
         // Progreso
         Row(
