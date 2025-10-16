@@ -12,6 +12,7 @@ import '../presentation/screens/vnest/vnest_selectcontext.dart';
 import '../presentation/screens/vnest/vnest_actionselection.dart';
 import '../presentation/screens/vnest/vnest_sentenceevaluation.dart';
 import '../presentation/screens/vnest/vnest_sentenceexpansion.dart';
+import '../presentation/screens/vnest/vnest_selectverb.dart';
 
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -48,6 +49,16 @@ class AppRouter {
     // --- VNEST Fase 0: Selección de contexto ---
       case '/vnest':
         return MaterialPageRoute(builder: (_) => const VnestSelectContextScreen());
+
+    // --- VNEST Fase 1: Selección de verbo ---
+      case '/vnest-verb':
+        final args = settings.arguments as Map<String, dynamic>?;
+        if (args == null || !args.containsKey('context')) {
+          return _errorRoute("Faltan los datos del contexto (args nulos)");
+        }
+        return MaterialPageRoute(
+          builder: (_) => VnestSelectVerbScreen(context: args['context']),
+        );
 
     // --- VNEST Fase 1: Selección de acción (¿quién? y ¿qué?) ---
       case '/vnest-action':

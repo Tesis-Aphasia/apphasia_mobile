@@ -15,7 +15,7 @@ class VnestConclusionScreen extends StatelessWidget {
 
     final idEjercicio = exercise['id_ejercicio_general'] ?? "";
     final contexto = exercise['context'] ?? exercise['contexto'] ?? "";
-
+    
 
     if (email == null || email.isEmpty || idEjercicio.isEmpty || contexto.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -47,21 +47,80 @@ class VnestConclusionScreen extends StatelessWidget {
     }
   }
 
+  // ---------------- Funciones de conjugación y construcción ----------------
+  String conjugatePresentIndicative(String sujeto, String verbo) {
+    if (verbo.endsWith("ar")) return verbo.substring(0, verbo.length - 2) + "a";
+    if (verbo.endsWith("er")) return verbo.substring(0, verbo.length - 2) + "e";
+    if (verbo.endsWith("ir")) return verbo.substring(0, verbo.length - 2) + "e";
+    return verbo; // fallback
+  }
+
+  String capitalize(String s) {
+    if (s.isEmpty) return s;
+    return s[0].toUpperCase() + s.substring(1);
+  }
+
+  String decapitalize(String s) {
+    if (s.isEmpty) return s;
+    return s[0].toLowerCase() + s.substring(1);
+  }
+
+  Widget buildColoredSentence(Map<String, dynamic> exerciseData) {
+    final who = exerciseData['who'] ?? '';
+    final what = exerciseData['what'] ?? '';
+    final verbo = exerciseData['verbo'] ?? '';
+    final where = exerciseData['where'] ?? '';
+    final why = exerciseData['why'] ?? '';
+    final when = exerciseData['when'] ?? '';
+
+    final colorSujeto = Colors.black87;
+    final colorVerbo = Colors.orange.shade700;
+    final colorObjeto = Colors.black87;
+    final colorDonde = Colors.blue.shade700;
+    final colorPorque = Colors.green.shade700;
+    final colorCuando = Colors.purple.shade700;
+
+    final verboConjugado = conjugatePresentIndicative(who, verbo);
+
+    return RichText(
+      textAlign: TextAlign.center,
+      text: TextSpan(
+        children: [
+          if (who.isNotEmpty)
+            TextSpan(
+                text: "${capitalize(who)} ",
+                style: TextStyle(color: colorSujeto, fontWeight: FontWeight.w600)),
+          if (verboConjugado.isNotEmpty)
+            TextSpan(
+                text: "${decapitalize(verboConjugado)} ",
+                style: TextStyle(color: colorVerbo, fontWeight: FontWeight.w600)),
+          if (what.isNotEmpty)
+            TextSpan(
+                text: "${decapitalize(what)} ",
+                style: TextStyle(color: colorObjeto, fontWeight: FontWeight.w600)),
+          if (where.isNotEmpty)
+            TextSpan(
+                text: "${decapitalize(where)} ",
+                style: TextStyle(color: colorDonde, fontWeight: FontWeight.w600)),
+          if (why.isNotEmpty)
+            TextSpan(
+                text: "${decapitalize(why)} ",
+                style: TextStyle(color: colorPorque, fontWeight: FontWeight.w600)),
+          if (when.isNotEmpty)
+            TextSpan(
+                text: "${decapitalize(when)}",
+                style: TextStyle(color: colorCuando, fontWeight: FontWeight.w600)),
+          const TextSpan(text: ".", style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
+  // ---------------- Build ----------------
   @override
   Widget build(BuildContext context) {
     final background = const Color(0xFFFEF9F4);
     final orange = const Color(0xFFFF8A00);
-
-    final verbo = exercise['verbo'] ?? "—";
-    final who = exercise['who'] ?? "—";
-    final what = exercise['what'] ?? "—";
-    final where = exercise['where'] ?? "—";
-    final why = exercise['why'] ?? "—";
-    final when = exercise['when'] ?? "—";
-    final contextText = exercise['context'] ?? "—";
-
-    final sentence = exercise['sentence'] ??
-        "$who $verbo $what $where $why $when.".replaceAll(RegExp(r'\s+\.'), ".");
 
     return Scaffold(
       backgroundColor: background,
@@ -100,10 +159,9 @@ class VnestConclusionScreen extends StatelessWidget {
                   ],
                 ),
               ),
-
               const SizedBox(height: 40),
 
-              // --- Sección resumen general ---
+              // --- Resumen ---
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(18),
@@ -130,9 +188,9 @@ class VnestConclusionScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _buildInfoRow("Contexto", contextText),
-                    _buildInfoRow("Pareja", "$who + $what"),
-                    _buildInfoRow("Verbo trabajado", verbo),
+                    _buildInfoRow("Contexto", exercise['context'] ?? exercise['contexto'] ?? "—"),
+                    _buildInfoRow("Pareja", "${exercise['who'] ?? ""} + ${exercise['what'] ?? ""}"),
+                    _buildInfoRow("Verbo trabajado", exercise['verbo'] ?? ""),
                   ],
                 ),
               ),
@@ -160,15 +218,7 @@ class VnestConclusionScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    Text(
-                      sentence,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                        height: 1.4,
-                      ),
-                    ),
+                    buildColoredSentence(exercise), // RichText con colores y conjugación
                   ],
                 ),
               ),
@@ -181,8 +231,7 @@ class VnestConclusionScreen extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: () async {
                     await _completeExercise(context);
-                    Navigator.pushNamedAndRemoveUntil(
-                        context, '/menu', (route) => false);
+                    Navigator.pushNamedAndRemoveUntil(context, '/menu', (route) => false);
                   },
                   icon: const Icon(Icons.refresh_rounded, color: Colors.white),
                   label: const Text(

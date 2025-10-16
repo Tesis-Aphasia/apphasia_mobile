@@ -1,22 +1,17 @@
-import 'package:aphasia_mobile/presentation/screens/register/register_viewmodel.dart';
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:provider/provider.dart';
-import 'package:dio/dio.dart';
-import '../../../data/services/api_service.dart';
+import 'package:flutter/material.dart';
 
 class VnestSelectContextScreen extends StatefulWidget {
   const VnestSelectContextScreen({super.key});
 
   @override
-  State<VnestSelectContextScreen> createState() => _VnestSelectContextScreenState();
+  State<VnestSelectContextScreen> createState() =>
+      _VnestSelectContextScreenState();
 }
 
 class _VnestSelectContextScreenState extends State<VnestSelectContextScreen> {
   final background = const Color(0xFFFEF9F4);
   final orange = const Color(0xFFFF8A00);
-
-  final ApiService apiService = ApiService();
 
   String? selectedContext;
   String customContext = "";
@@ -32,8 +27,10 @@ class _VnestSelectContextScreenState extends State<VnestSelectContextScreen> {
 
   /// 🔥 Trae los contextos desde Firebase
   Future<void> fetchContextos() async {
+    setState(() => loading = true);
     try {
-      final snapshot = await FirebaseFirestore.instance.collection('contextos').get();
+      final snapshot =
+          await FirebaseFirestore.instance.collection('contextos').get();
       final data = snapshot.docs.map((doc) {
         final d = doc.data();
         return {
@@ -51,61 +48,24 @@ class _VnestSelectContextScreenState extends State<VnestSelectContextScreen> {
       setState(() {
         error = "No se pudieron cargar los contextos.";
       });
-    }
-  }
-
-  Future<void> sendRequest(String contextText) async {
-    final registerVM = Provider.of<RegisterViewModel>(context, listen: false);
-    final email = registerVM.userEmail;
-
-    setState(() {
-      loading = true;
-      error = null;
-    });
-
-    try {
-      final response = await apiService.post(
-        '/context/',
-        {"context": contextText, "nivel": "facil", "email": email},
-      );
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = Map<String, dynamic>.from(response.data);
-
-        Navigator.pushNamed(
-          context,
-          '/vnest-action',
-          arguments: {
-            ...data,
-            'context': contextText,
-          },
-        );
-      } else {
-        throw Exception("Error HTTP ${response.statusCode}");
-      }
-    } on DioException catch (e) {
-      setState(() {
-        if (e.response != null) {
-          error = "Error ${e.response?.statusCode}: ${e.response?.data}";
-        } else {
-          error = "Error de conexión: ${e.message}";
-        }
-      });
-    } catch (e) {
-      setState(() {
-        error = e.toString();
-      });
     } finally {
-      setState(() {
-        loading = false;
-      });
+      setState(() => loading = false);
     }
   }
 
   void handleNext() {
-    final selected = selectedContext == "custom" ? customContext.trim() : selectedContext;
+    final selected =
+        selectedContext == "custom" ? customContext.trim() : selectedContext;
     if (selected == null || selected.isEmpty) return;
-    sendRequest(selected);
+
+    // 🔹 En lugar de llamar al endpoint, vamos a la pantalla de verbos
+    Navigator.pushNamed(
+      context,
+      '/vnest-verb',
+      arguments: {
+        'context': selected,
+      },
+    );
   }
 
   @override
@@ -165,13 +125,8 @@ class _VnestSelectContextScreenState extends State<VnestSelectContextScreen> {
             CircularProgressIndicator(color: orange, strokeWidth: 4),
             const SizedBox(height: 20),
             const Text(
-              "Creando el ejercicio…",
+              "Cargando contextos…",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              "Esto puede tardar unos segundos",
-              style: TextStyle(fontSize: 14, color: Colors.grey),
             ),
           ],
         ),
@@ -189,7 +144,7 @@ class _VnestSelectContextScreenState extends State<VnestSelectContextScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              error ?? "Error enviando el contexto",
+              error ?? "Error cargando contextos",
               style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 8),
@@ -309,7 +264,7 @@ class _VnestSelectContextScreenState extends State<VnestSelectContextScreen> {
           disabledBackgroundColor: orange.withOpacity(0.4),
         ),
         child: Text(
-          loading ? "Generando…" : "Siguiente",
+          loading ? "Cargando…" : "Siguiente",
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
