@@ -2,7 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 class VnestActionSelectionScreen extends StatefulWidget {
-  final Map<String, dynamic> exercise; // viene del contexto anterior
+  final Map<String, dynamic> exercise;
 
   const VnestActionSelectionScreen({super.key, required this.exercise});
 
@@ -13,6 +13,7 @@ class VnestActionSelectionScreen extends StatefulWidget {
 class _VnestActionSelectionScreenState extends State<VnestActionSelectionScreen> {
   final background = const Color(0xFFFEF9F4);
   final orange = const Color(0xFFFF8A00);
+  final darkText = const Color(0xFF222222);
 
   late String verbo;
   late List<String> sujetos;
@@ -29,7 +30,6 @@ class _VnestActionSelectionScreenState extends State<VnestActionSelectionScreen>
     verbo = exercise['verbo'] ?? 'Acción';
     final pares = (exercise['pares'] as List?) ?? [];
 
-    // Extraer y barajar sujetos y objetos únicos
     final s = <String>{};
     final o = <String>{};
     final vp = <String>{};
@@ -75,14 +75,8 @@ class _VnestActionSelectionScreenState extends State<VnestActionSelectionScreen>
       "id_ejercicio_general": widget.exercise["id_ejercicio_general"],
     };
 
-    Navigator.pushNamed(
-      context,
-      '/vnest-phase2',
-      arguments: args,
-    );
+    Navigator.pushNamed(context, '/vnest-phase2', arguments: args);
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -92,30 +86,60 @@ class _VnestActionSelectionScreenState extends State<VnestActionSelectionScreen>
         backgroundColor: background,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: orange),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black87),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          "Elige ¿quién? y ¿qué?",
-          style: TextStyle(fontWeight: FontWeight.w700, color: Colors.black87),
+          "Elige ¿Quién y Qué?",
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: Colors.black87,
+            fontSize: 20,
+          ),
         ),
         centerTitle: true,
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // --- Verbo central ---
+              // Progreso
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "Paso 1 de 5",
+                  style: TextStyle(
+                    color: Colors.grey.shade800,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: LinearProgressIndicator(
+                  value: 0.2,
+                  backgroundColor: Colors.grey.shade200,
+                  color: orange,
+                  minHeight: 6,
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Verbo central
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 24),
+                padding: const EdgeInsets.symmetric(vertical: 20),
                 decoration: BoxDecoration(
-                  color: Colors.black87,
-                  borderRadius: BorderRadius.circular(18),
+                  color: Colors.orange,
+                  borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.grey.withOpacity(0.2),
+                      color: Colors.grey.withOpacity(0.15),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),
@@ -124,46 +148,33 @@ class _VnestActionSelectionScreenState extends State<VnestActionSelectionScreen>
                 child: Text(
                   verbo.toUpperCase(),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
                     color: Colors.white,
                   ),
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
 
-              // --- Advertencia si combinación inválida ---
-              if (selectedWho != null &&
-                  selectedWhat != null &&
-                  !pairIsValid)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    "Esa combinación no va junta. Intenta con otro sujeto u objeto.",
-                    style: TextStyle(color: Colors.red.shade700, fontSize: 14),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-
+              // Columnas de selección
               Expanded(
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // --- Columna Izquierda (¿Quién?) ---
                     Expanded(
                       child: _buildColumnSelector(
-                        title: "¿QUIÉN?",
+                        title: "¿Quién?",
                         options: sujetos,
                         selectedValue: selectedWho,
                         onSelect: (s) => setState(() => selectedWho = s),
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    // --- Columna Derecha (¿Qué?) ---
+                    const SizedBox(width: 20),
                     Expanded(
                       child: _buildColumnSelector(
-                        title: "¿QUÉ?",
+                        title: "¿Qué?",
                         options: objetos,
                         selectedValue: selectedWhat,
                         onSelect: (s) => setState(() => selectedWhat = s),
@@ -173,10 +184,86 @@ class _VnestActionSelectionScreenState extends State<VnestActionSelectionScreen>
                 ),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
 
-              // --- Progreso + Botones ---
-              _buildFooter(),
+              // Error message
+              if (selectedWho != null &&
+                  selectedWhat != null &&
+                  !pairIsValid)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(top: 4, bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.red.shade200, width: 1),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          "Combinación inválida. Por favor, intenta de nuevo.",
+                          style: TextStyle(
+                            color: Colors.red.shade700,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              const SizedBox(height: 8),
+
+              // Botones
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey.shade300,
+                        foregroundColor: Colors.black87,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        "Anterior",
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: pairIsValid ? handleNext : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: pairIsValid
+                            ? const Color(0xFFFF8A00)
+                            : const Color(0xFFFF8A00).withOpacity(0.4),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        "Siguiente",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -195,12 +282,13 @@ class _VnestActionSelectionScreenState extends State<VnestActionSelectionScreen>
       children: [
         Text(
           title,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: Colors.black87,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         Expanded(
           child: ListView.builder(
             itemCount: options.length,
@@ -216,103 +304,31 @@ class _VnestActionSelectionScreenState extends State<VnestActionSelectionScreen>
   }
 
   Widget _buildOptionButton(String text, bool isSelected, Function(String) onSelect) {
-    final baseColor = isSelected ? orange : Colors.white;
-    final borderColor = isSelected ? orange : Colors.grey.shade300;
-
     return GestureDetector(
       onTap: () => onSelect(text),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        height: 56, 
+        alignment: Alignment.center, 
         decoration: BoxDecoration(
-          color: baseColor.withOpacity(isSelected ? 0.1 : 1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: borderColor, width: 2),
-          boxShadow: [
-            if (isSelected)
-              BoxShadow(
-                color: orange.withOpacity(0.2),
-                blurRadius: 6,
-                offset: const Offset(0, 3),
-              ),
-          ],
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? const Color(0xFFFF8A00) : Colors.grey.shade300,
+            width: 2,
+          ),
         ),
-        child: Center(
-          child: Text(
-            text,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: isSelected ? orange : Colors.black87,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              fontSize: 16,
-            ),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: isSelected ? const Color(0xFFFF8A00) : Colors.black87,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            fontSize: 16,
+            height: 1.1, 
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildFooter() {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: const [
-            Text("Fase 1", style: TextStyle(color: Colors.grey, fontSize: 14)),
-            Text("1/4", style: TextStyle(color: Colors.grey, fontSize: 14)),
-          ],
-        ),
-        const SizedBox(height: 6),
-        // Progreso
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: LinearProgressIndicator(
-            value: 0.25,
-            backgroundColor: Colors.grey.shade200,
-            color: orange,
-            minHeight: 8,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey.shade300,
-                  foregroundColor: Colors.black87,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text(
-                  "Anterior",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: pairIsValid ? handleNext : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: orange,
-                  disabledBackgroundColor: orange.withOpacity(0.4),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text(
-                  "Siguiente",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 }

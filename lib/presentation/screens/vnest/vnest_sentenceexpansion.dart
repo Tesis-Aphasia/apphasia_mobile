@@ -1,8 +1,20 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 
+/// =============================
+///  Modelo para opción-explicación
+/// =============================
+class ExpansionPair {
+  final String opcion;
+  final String explicacion;
+  const ExpansionPair(this.opcion, this.explicacion);
+}
+
+/// =============================
+///  Pantalla principal
+/// =============================
 class VnestSentenceExpansionScreen extends StatefulWidget {
-  final Map<String, dynamic> data; // viene de la fase anterior
+  final Map<String, dynamic> data;
 
   const VnestSentenceExpansionScreen({super.key, required this.data});
 
@@ -15,31 +27,15 @@ class _VnestSentenceExpansionScreenState
     extends State<VnestSentenceExpansionScreen> {
   final background = const Color(0xFFFEF9F4);
   final orange = const Color(0xFFFF8A00);
-  final Color colorSujeto = Colors.black87;
-  final Color colorVerbo = Colors.orange.shade700;
-  final Color colorObjeto = Colors.black87;
-  final Color colorDonde = Colors.blue.shade700;
-  final Color colorPorque = Colors.green.shade700;
-  final Color colorCuando = Colors.purple.shade700;
 
   late String verbo;
   late String who;
   late String what;
   late Map<String, dynamic> currentPair;
 
-  String capitalize(String s) {
-    if (s.isEmpty) return s;
-    return s[0].toUpperCase() + s.substring(1);
-  }
-
-  String decapitalize(String s) {
-    if (s.isEmpty) return s;
-    return s[0].toLowerCase() + s.substring(1);
-  }
-
-  List<String> donde = [];
-  List<String> porque = [];
-  List<String> cuando = [];
+  List<ExpansionPair> dondePairs = [];
+  List<ExpansionPair> porquePairs = [];
+  List<ExpansionPair> cuandoPairs = [];
 
   String? correctDonde;
   String? correctPorque;
@@ -49,6 +45,27 @@ class _VnestSentenceExpansionScreenState
   String? selectedWhy;
   String? selectedWhen;
 
+  String? feedbackMessage; 
+
+  // =============================
+  //  Utils de texto
+  // =============================
+  String capitalize(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+  String decapitalize(String s) =>
+      s.isEmpty ? s : s[0].toLowerCase() + s.substring(1);
+
+  // Conjugación simple a 3ra persona (presente)
+  String conjugatePresentIndicative(String sujeto, String verbo) {
+    if (verbo.endsWith("ar")) return verbo.substring(0, verbo.length - 2) + "a";
+    if (verbo.endsWith("er")) return verbo.substring(0, verbo.length - 2) + "e";
+    if (verbo.endsWith("ir")) return verbo.substring(0, verbo.length - 2) + "e";
+    return verbo;
+  }
+
+  // =============================
+  //  INITSTATE
+  // =============================
   @override
   void initState() {
     super.initState();
@@ -58,67 +75,136 @@ class _VnestSentenceExpansionScreenState
     who = exercise['who'] ?? '';
     what = exercise['what'] ?? '';
 
-    // 🔎 buscar el par correcto
-    final pares = (exercise['pares'] as List?) ?? [];
-    currentPair = pares.firstWhere(
-      (p) => p['sujeto'] == who && p['objeto'] == what,
-      orElse: () => {},
+    final paresRaw = (exercise['pares'] ?? []) as List;
+    currentPair = Map<String, dynamic>.from(
+      paresRaw.cast<Map>().firstWhere(
+        (p) => p['sujeto'] == who && p['objeto'] == what,
+        orElse: () => <String, dynamic>{},
+      ),
     );
 
-    // obtener expansiones
-    final expansiones = currentPair['expansiones'] ?? {};
+    final expansiones =
+        Map<String, dynamic>.from(currentPair['expansiones'] ?? {});
 
-    donde = _shuffle(List<String>.from(expansiones['donde']?['opciones'] ?? []));
-    porque = _shuffle(List<String>.from(expansiones['por_que']?['opciones'] ?? []));
-    cuando = _shuffle(List<String>.from(expansiones['cuando']?['opciones'] ?? []));
-
-    correctDonde = expansiones['donde']?['opcion_correcta'];
-    correctPorque = expansiones['por_que']?['opcion_correcta'];
-    correctCuando = expansiones['cuando']?['opcion_correcta'];
-
-    // inicializar selección por defecto
-    if (donde.isNotEmpty) selectedWhere = donde.first;
-    if (porque.isNotEmpty) selectedWhy = porque.first;
-    if (cuando.isNotEmpty) selectedWhen = cuando.first;
-  }
-
-  List<T> _shuffle<T>(List<T> items) {
-    final rand = Random();
-    for (int i = items.length - 1; i > 0; i--) {
-      int j = rand.nextInt(i + 1);
-      final temp = items[i];
-      items[i] = items[j];
-      items[j] = temp;
+    List<ExpansionPair> _makePairs(String key) {
+      final section =
+          Map<String, dynamic>.from(expansiones[key] ?? <String, dynamic>{});
+      final ops = List<String>.from(section['opciones'] ?? []);
+      final exps = List<String>.from(section['explicaciones'] ?? []);
+      final pairs = <ExpansionPair>[];
+      for (int i = 0; i < ops.length; i++) {
+        pairs.add(ExpansionPair(ops[i], i < exps.length ? exps[i] : ""));
+      }
+      pairs.shuffle(Random());
+      return pairs;
     }
-    return items;
+
+    dondePairs = _makePairs('donde');
+    porquePairs = _makePairs('por_que');
+    cuandoPairs = _makePairs('cuando');
+
+    correctDonde =
+        expansiones['donde'] != null ? expansiones['donde']['opcion_correcta'] : null;
+    correctPorque =
+        expansiones['por_que'] != null ? expansiones['por_que']['opcion_correcta'] : null;
+    correctCuando =
+        expansiones['cuando'] != null ? expansiones['cuando']['opcion_correcta'] : null;
   }
 
-  /// Función simple para conjugar presente indicativo 3ra persona singular
-  String conjugatePresentIndicative(String sujeto, String verbo) {
-    if (verbo.endsWith("ar")) return verbo.substring(0, verbo.length - 2) + "a";
-    if (verbo.endsWith("er")) return verbo.substring(0, verbo.length - 2) + "e";
-    if (verbo.endsWith("ir")) return verbo.substring(0, verbo.length - 2) + "e";
-    return verbo; // fallback
-  }
-
+  // =============================
+  //  Construcción de oración
+  // =============================
   String buildSentence() {
-    final verboConjugado = conjugatePresentIndicative(who, verbo);
-
-    final parts = [
-      who,
-      verboConjugado, // usamos el verbo conjugado
-      what,
-      selectedWhere ?? '',
-      selectedWhy ?? '',
-      selectedWhen ?? ''
-    ].where((p) => p.isNotEmpty).join(' ');
-
-    return '$parts.';
+    final vConj = conjugatePresentIndicative(who, verbo);
+    final parts = <String>[
+      capitalize(who),
+      decapitalize(vConj),
+      decapitalize(what),
+      if (selectedWhere != null && selectedWhere!.isNotEmpty)
+        decapitalize(selectedWhere!),
+      if (selectedWhy != null && selectedWhy!.isNotEmpty)
+        decapitalize(selectedWhy!),
+      if (selectedWhen != null && selectedWhen!.isNotEmpty)
+        decapitalize(selectedWhen!),
+    ];
+    final sentence = parts.where((p) => p.trim().isNotEmpty).join(' ');
+    return sentence.endsWith('.') ? sentence : '$sentence.';
   }
 
-  void handleNext() {
-    final safeData = Map<String, dynamic>.from(widget.data);
+  // =============================
+  //  Oración final coloreada
+  // =============================
+  Widget buildColoredSentence() {
+    final whereCorrect = selectedWhere != null && selectedWhere == correctDonde;
+    final whyCorrect = selectedWhy != null && selectedWhy == correctPorque;
+    final whenCorrect = selectedWhen != null && selectedWhen == correctCuando;
 
+    return RichText(
+      textAlign: TextAlign.center,
+      text: TextSpan(
+        children: [
+          TextSpan(
+            text: "${capitalize(who)} ",
+            style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
+          ),
+          TextSpan(
+            text: "${decapitalize(conjugatePresentIndicative(who, verbo))} ",
+            style: TextStyle(color: orange, fontWeight: FontWeight.w600),
+          ),
+          TextSpan(
+            text: "${decapitalize(what)} ",
+            style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
+          ),
+          if (selectedWhere != null)
+            TextSpan(
+              text: "${decapitalize(selectedWhere!)} ",
+              style: TextStyle(
+                color: whereCorrect ? Colors.green.shade700 : Colors.red.shade700,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          if (selectedWhy != null)
+            TextSpan(
+              text: "${decapitalize(selectedWhy!)} ",
+              style: TextStyle(
+                color: whyCorrect ? Colors.green.shade700 : Colors.red.shade700,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          if (selectedWhen != null)
+            TextSpan(
+              text: "${decapitalize(selectedWhen!)}",
+              style: TextStyle(
+                color: whenCorrect ? Colors.green.shade700 : Colors.red.shade700,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          const TextSpan(
+            text: ".",
+            style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =============================
+  //  Validación antes de continuar
+  // =============================
+  void handleNext() {
+    final whereCorrect = selectedWhere == correctDonde;
+    final whyCorrect = selectedWhy == correctPorque;
+    final whenCorrect = selectedWhen == correctCuando;
+
+    if (!whereCorrect || !whyCorrect || !whenCorrect) {
+      setState(() {
+        feedbackMessage =
+            "Debes seleccionar correctamente las tres opciones antes de continuar.";
+      });
+      return;
+    }
+
+    final safeData = Map<String, dynamic>.from(widget.data);
     Navigator.pushNamed(
       context,
       '/vnest-phase3',
@@ -135,120 +221,40 @@ class _VnestSentenceExpansionScreenState
     );
   }
 
-    // Función para crear el RichText de la oración completa
-  Widget buildColoredSentence() {
-    final verboConjugado = conjugatePresentIndicative(who, verbo);
-
-    return RichText(
-      textAlign: TextAlign.center,
-      text: TextSpan(
-        children: [
-          if (who.isNotEmpty)
-            TextSpan(
-                text: "${capitalize(who)} ",
-                style: TextStyle(color: colorSujeto, fontWeight: FontWeight.w600)),
-          if (verboConjugado.isNotEmpty)
-            TextSpan(
-                text: "${decapitalize(verboConjugado)} ",
-                style: TextStyle(color: colorVerbo, fontWeight: FontWeight.w600)),
-          if (what.isNotEmpty)
-            TextSpan(
-                text: "${decapitalize(what)} ",
-                style: TextStyle(color: colorObjeto, fontWeight: FontWeight.w600)),
-          if (selectedWhere != null)
-            TextSpan(
-                text: "${decapitalize(selectedWhere!)} ",
-                style: TextStyle(color: colorDonde, fontWeight: FontWeight.w600)),
-          if (selectedWhy != null)
-            TextSpan(
-                text: "${decapitalize(selectedWhy!)} ",
-                style: TextStyle(color: colorPorque, fontWeight: FontWeight.w600)),
-          if (selectedWhen != null)
-            TextSpan(
-                text: "${decapitalize(selectedWhen!)}",
-                style: TextStyle(color: colorCuando, fontWeight: FontWeight.w600)),
-          TextSpan(text: ".", style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600)),
-        ],
-      ),
-    );
-  }
-
-
-  @override
-  Widget build(BuildContext context) {
-    if (currentPair.isEmpty) {
-      return Scaffold(
-        backgroundColor: background,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'Faltan datos para esta pareja',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Regresa y selecciona un contexto y una pareja válidos.',
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(backgroundColor: orange),
-                  child: const Text('Volver'),
-                ),
-              ],
-            ),
-          ),
+  // =============================
+  //  Tarjetas superiores
+  // =============================
+  Widget _wordCard(String label, String text, {bool isVerb = false}) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 6),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isVerb ? orange.withOpacity(0.1) : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: isVerb ? orange : Colors.grey.shade300),
         ),
-      );
-    }
-
-    return Scaffold(
-      backgroundColor: background,
-      appBar: AppBar(
-        backgroundColor: background,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: orange),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          "Completa la oración",
-          style: TextStyle(fontWeight: FontWeight.w700, color: Colors.black87),
-        ),
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          child: Column(
-            children: [
-              _buildHeaderCards(),
-              const SizedBox(height: 16),
-              Expanded(
-                child: ListView(
-                  children: [
-                    _buildSection(
-                        "1. ¿DÓNDE?", donde, selectedWhere, correctDonde,
-                        (v) => setState(() => selectedWhere = v)),
-                    _buildSection(
-                        "2. ¿POR QUÉ?", porque, selectedWhy, correctPorque,
-                        (v) => setState(() => selectedWhy = v)),
-                    _buildSection(
-                        "3. ¿CUÁNDO?", cuando, selectedWhen, correctCuando,
-                        (v) => setState(() => selectedWhen = v)),
-                  ],
-                ),
+        child: Column(
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: isVerb ? orange : Colors.black54,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
               ),
-              const SizedBox(height: 12),
-              _buildFooter(),
-            ],
-          ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              text,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: isVerb ? orange : Colors.black87,
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -257,197 +263,278 @@ class _VnestSentenceExpansionScreenState
   Widget _buildHeaderCards() {
     final verboConjugado = conjugatePresentIndicative(who, verbo);
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _smallCard("¿Quién?", who, Colors.black87),
-        _smallCard("Verbo", verboConjugado, orange), // conjugado aquí
-        _smallCard("¿Qué?", what, Colors.black87),
+        _wordCard("¿Quién?", capitalize(who)),
+        _wordCard("Verbo", verboConjugado, isVerb: true),
+        _wordCard("¿Qué?", decapitalize(what)),
       ],
     );
   }
 
-  Widget _smallCard(String label, String text, Color color) {
-    final isOrange = color == orange;
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isOrange ? orange : Colors.black87,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.15),
-              blurRadius: 6,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Column(
+  // =============================
+  //  Sección de preguntas
+  // =============================
+  Widget _buildQuestionSection({
+    required IconData icon,
+    required String title,
+    required List<ExpansionPair>? pairs,
+    required String? selectedValue,
+    required String? correctValue,
+    required void Function(String) onSelect,
+    required Color accentColor,
+  }) {
+    final safePairs = pairs ?? [];
+    if (safePairs.isEmpty) return const SizedBox();
+
+    final ExpansionPair selectedPair = safePairs.firstWhere(
+      (p) => p.opcion == selectedValue,
+      orElse: () => const ExpansionPair("", ""),
+    );
+    final selectedExplanation = selectedPair.explicacion;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Text(
-              label.toUpperCase(),
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.white.withOpacity(0.8),
-              ),
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: accentColor.withOpacity(0.1),
+              child: Icon(icon, color: accentColor, size: 18),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(width: 8),
             Text(
-              text,
-              textAlign: TextAlign.center,
+              title,
               style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+                  fontSize: 20, fontWeight: FontWeight.w700, color: Colors.black87),
             ),
           ],
         ),
-      ),
+        const SizedBox(height: 12),
+        ...safePairs.map((p) {
+          final op = p.opcion;
+          final isSelected = selectedValue == op;
+          final isCorrect = isSelected && op == correctValue;
+          final isWrong = isSelected && op != correctValue;
+
+          Color borderColor = Colors.grey.shade300;
+          Color bgColor = Colors.white;
+          Color textColor = Colors.black87;
+
+          if (isSelected) {
+            borderColor = accentColor.withOpacity(0.5);
+            bgColor = accentColor.withOpacity(0.05);
+          }
+          if (isCorrect) {
+            borderColor = Colors.green.shade600;
+            bgColor = Colors.green.shade50;
+            textColor = Colors.green.shade900;
+          } else if (isWrong) {
+            borderColor = Colors.red.shade600;
+            bgColor = Colors.red.shade50;
+            textColor = Colors.red.shade900;
+          }
+
+          return GestureDetector(
+            onTap: () => setState(() {
+              onSelect(op);
+              feedbackMessage = null;
+            }),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: borderColor, width: 2),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      op,
+                      style: TextStyle(
+                        color: textColor,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                  if (isCorrect)
+                    const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                  if (isWrong)
+                    const Icon(Icons.cancel, color: Colors.red, size: 20),
+                ],
+              ),
+            ),
+          );
+        }),
+        if (selectedExplanation.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(top: 6, bottom: 16),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.orange.shade200),
+            ),
+            child: Text(
+              selectedExplanation,
+              style: const TextStyle(fontSize: 14, color: Colors.black87),
+            ),
+          ),
+      ],
     );
   }
 
-  Widget _buildSection(String title, List<String> options, String? selectedValue,
-      String? correctValue, Function(String) onSelect) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 10),
-          ...options.map((op) {
-            final isSelected = selectedValue == op;
-            final isCorrect = isSelected && op == correctValue;
-            final isWrong = isSelected && op != correctValue;
-
-            Color borderColor;
-            Color bgColor;
-            Color textColor;
-
-            if (isCorrect) {
-              borderColor = Colors.green.shade600;
-              bgColor = Colors.green.shade50;
-              textColor = Colors.green.shade900;
-            } else if (isWrong) {
-              borderColor = Colors.red.shade600;
-              bgColor = Colors.red.shade50;
-              textColor = Colors.red.shade900;
-            } else {
-              borderColor = Colors.grey.shade300;
-              bgColor = Colors.white;
-              textColor = Colors.black87;
-            }
-
-            return GestureDetector(
-              onTap: () => onSelect(op),
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: borderColor, width: 2),
-                ),
+  // =============================
+  //  BUILD
+  // =============================
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: background,
+      appBar: AppBar(
+        backgroundColor: background,
+        elevation: 0,
+        leading: IconButton(
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black87),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          "Expansión de Oraciones",
+          style: TextStyle(fontWeight: FontWeight.w700, color: Colors.black87),
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            onPressed: () {}, // futuro: TTS
+            icon: const Icon(Icons.volume_up_rounded, color: Colors.black54),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
                 child: Text(
-                  op,
+                  "Paso 2 de 5",
                   style: TextStyle(
-                    color: textColor,
-                    fontWeight:
-                        isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: Colors.grey.shade800,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFooter() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        // Oración completa
-        Container(
-          padding: const EdgeInsets.all(16),
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: Colors.amber.shade50,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Column(
-            children: [
-              const Text(
-                "Oración completa:",
-                style: TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
+              const SizedBox(height: 6),
+              LinearProgressIndicator(
+                value: 0.3,
+                color: orange,
+                backgroundColor: Colors.grey.shade200,
+                minHeight: 6,
+                borderRadius: BorderRadius.circular(8),
               ),
-              const SizedBox(height: 8),
-              buildColoredSentence(), // <-- RichText con colores
+              const SizedBox(height: 16),
+              _buildHeaderCards(),
+              const SizedBox(height: 24),
+              Expanded(
+                child: ListView(
+                  children: [
+                    _buildQuestionSection(
+                      icon: Icons.location_on_rounded,
+                      title: "¿Dónde?",
+                      pairs: dondePairs,
+                      selectedValue: selectedWhere,
+                      correctValue: correctDonde,
+                      onSelect: (v) => selectedWhere = v,
+                      accentColor: Colors.orange,
+                    ),
+                    _buildQuestionSection(
+                      icon: Icons.psychology_alt_rounded,
+                      title: "¿Por qué?",
+                      pairs: porquePairs,
+                      selectedValue: selectedWhy,
+                      correctValue: correctPorque,
+                      onSelect: (v) => selectedWhy = v,
+                      accentColor: Colors.green,
+                    ),
+                    _buildQuestionSection(
+                      icon: Icons.access_time_rounded,
+                      title: "¿Cuándo?",
+                      pairs: cuandoPairs,
+                      selectedValue: selectedWhen,
+                      correctValue: correctCuando,
+                      onSelect: (v) => selectedWhen = v,
+                      accentColor: Colors.purple,
+                    ),
+                  ],
+                ),
+              ),
+              if (feedbackMessage != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    feedbackMessage!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              Container(
+                margin: const EdgeInsets.only(top: 10, bottom: 6),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: buildColoredSentence(),
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey.shade200,
+                        foregroundColor: Colors.black87,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Text("Anterior"),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: handleNext,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: orange,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Text(
+                        "Siguiente",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
-
-
-        // Progreso
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: const [
-            Text("Fase 2", style: TextStyle(color: Colors.grey, fontSize: 14)),
-            Text("2/4", style: TextStyle(color: Colors.grey, fontSize: 14)),
-          ],
-        ),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: LinearProgressIndicator(
-            value: 0.5,
-            backgroundColor: Colors.grey.shade200,
-            color: orange,
-            minHeight: 8,
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Botones
-        Row(
-          children: [
-            Expanded(
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey.shade300,
-                  foregroundColor: Colors.black87,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text("Anterior"),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: handleNext,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: orange,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text(
-                  "Siguiente",
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
+      ),
     );
   }
 }

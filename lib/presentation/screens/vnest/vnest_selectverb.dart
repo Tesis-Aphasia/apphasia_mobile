@@ -20,9 +20,9 @@ class _VnestSelectVerbScreenState extends State<VnestSelectVerbScreen> {
   final ApiService apiService = ApiService();
 
   bool loading = false;
-  bool loadingExercise = false; // ⚡ bandera para saber si estamos cargando el ejercicio
+  bool loadingExercise = false;
   String? error;
-  List<String> verbs = [];
+  List<Map<String, dynamic>> verbs = []; // ✅ verbo + highlight
   String? selectedVerb;
 
   @override
@@ -31,6 +31,9 @@ class _VnestSelectVerbScreenState extends State<VnestSelectVerbScreen> {
     fetchVerbs();
   }
 
+  // ============================
+  // 🔹 OBTENER VERBOS DEL CONTEXTO
+  // ============================
   Future<void> fetchVerbs() async {
     setState(() {
       loading = true;
@@ -45,29 +48,47 @@ class _VnestSelectVerbScreenState extends State<VnestSelectVerbScreen> {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data['verbs'] ?? [];
-        final uniqueVerbs = data.map((v) => v.toString()).toSet().toList();
+
+        // Cada verbo puede venir como {'verbo': 'comer', 'highlight': true/false}
+        final parsed = data.map<Map<String, dynamic>>((v) {
+          if (v is Map) {
+            return {
+              "verbo": v["verbo"],
+              "highlight": v["highlight"] ?? false,
+            };
+          }
+          return {"verbo": v.toString(), "highlight": false};
+        }).toList();
+
+        // Eliminar duplicados
+        final unique = {
+          for (var v in parsed) v["verbo"]: v,
+        }.values.toList();
 
         setState(() {
-          verbs = uniqueVerbs;
+          verbs = unique;
         });
       } else {
         throw Exception("Error HTTP ${response.statusCode}");
       }
     } on DioException catch (e) {
       setState(() {
-        error = e.response != null ? "Error ${e.response?.statusCode}: ${e.response?.data}" : "Error de conexión: ${e.message}";
+        error = e.response != null
+            ? "Error ${e.response?.statusCode}: ${e.response?.data}"
+            : "Error de conexión: ${e.message}";
       });
     } catch (e) {
       setState(() {
         error = e.toString();
       });
     } finally {
-      setState(() {
-        loading = false;
-      });
+      setState(() => loading = false);
     }
   }
 
+  // ============================
+  // 🔹 PEDIR EJERCICIO DEL VERBO
+  // ============================
   Future<void> requestExercise(String verbo) async {
     final registerVM = Provider.of<RegisterViewModel>(context, listen: false);
     final email = registerVM.userEmail;
@@ -105,19 +126,22 @@ class _VnestSelectVerbScreenState extends State<VnestSelectVerbScreen> {
       }
     } on DioException catch (e) {
       setState(() {
-        error = e.response != null ? "Error ${e.response?.statusCode}: ${e.response?.data}" : "Error de conexión: ${e.message}";
+        error = e.response != null
+            ? "Error ${e.response?.statusCode}: ${e.response?.data}"
+            : "Error de conexión: ${e.message}";
       });
     } catch (e) {
       setState(() {
         error = e.toString();
       });
     } finally {
-      setState(() {
-        loadingExercise = false;
-      });
+      setState(() => loadingExercise = false);
     }
   }
 
+  // ============================
+  // 🔹 INTERFAZ
+  // ============================
   @override
   Widget build(BuildContext context) {
     final isLoading = loading || loadingExercise;
@@ -152,8 +176,10 @@ class _VnestSelectVerbScreenState extends State<VnestSelectVerbScreen> {
                     Expanded(
                       child: verbs.isEmpty
                           ? const Center(child: Text("No hay verbos disponibles"))
-                          : ListView(
-                              children: verbs.map((v) => _buildVerbOption(v)).toList(),
+                          : ListView.builder(
+                              itemCount: verbs.length,
+                              itemBuilder: (context, index) =>
+                                  _buildVerbOption(verbs[index]),
                             ),
                     ),
                   ],
@@ -205,7 +231,12 @@ class _VnestSelectVerbScreenState extends State<VnestSelectVerbScreen> {
         ),
       );
 
-  Widget _buildVerbOption(String verbo) {
+  // ============================
+  // 🔹 OPCIÓN DE VERBO
+  // ============================
+  Widget _buildVerbOption(Map<String, dynamic> verbData) {
+    final verbo = verbData["verbo"] ?? "";
+    final highlight = verbData["highlight"] ?? false;
     final isSelected = selectedVerb == verbo;
 
     return InkWell(
@@ -218,10 +249,18 @@ class _VnestSelectVerbScreenState extends State<VnestSelectVerbScreen> {
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? orange.withOpacity(0.1) : Colors.white,
+          color: isSelected
+              ? orange.withOpacity(0.1)
+              : highlight
+                  ? Colors.yellow.shade50
+                  : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? orange : Colors.grey.shade300,
+            color: isSelected
+                ? orange
+                : highlight
+                    ? Colors.amber
+                    : Colors.grey.shade300,
             width: 2,
           ),
           boxShadow: [
@@ -234,20 +273,31 @@ class _VnestSelectVerbScreenState extends State<VnestSelectVerbScreen> {
         ),
         child: Row(
           children: [
+            // Ícono (bombillo o play)
             Container(
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: orange.withOpacity(0.1),
+                color: highlight
+                    ? Colors.amber.withOpacity(0.15)
+                    : orange.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.play_arrow_rounded, color: orange),
+              child: Icon(
+                highlight ? Icons.lightbulb_rounded : Icons.play_arrow_rounded,
+                color: highlight ? Colors.amber.shade700 : orange,
+                size: highlight ? 28 : 30,
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: Text(
                 verbo,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: highlight ? Colors.amber.shade800 : Colors.black87,
+                ),
               ),
             ),
             Icon(
