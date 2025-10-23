@@ -73,6 +73,67 @@ class MenuScreen extends StatelessWidget {
                 orange: orange,
                 onTap: () => Navigator.pushNamed(context, '/sr'),
               ),
+
+              // --- Opción 3: Personalizar Ejercicios ---
+              const SizedBox(height: 40),
+              Text(
+                'Más opciones',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              InkWell(
+                onTap: () => Navigator.pushNamed(context, '/personalize-exercises'),
+                borderRadius: BorderRadius.circular(18),
+                child: Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: orange.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: orange.withOpacity(0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.build_rounded, color: orange, size: 28),
+                      ),
+                      const SizedBox(width: 18),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text(
+                              'Personalizar Ejercicios',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Crea ejercicios adaptados a ti',
+                              style: TextStyle(fontSize: 14, color: Colors.black54),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.arrow_forward_ios_rounded, size: 18, color: Colors.grey.shade400),
+                    ],
+                  ),
+                ),
+              ),
+
             ],
           ),
         ),
