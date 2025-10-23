@@ -73,7 +73,7 @@ class _PersonalizeExercisesScreenState extends State<PersonalizeExercisesScreen>
 
     try {
       final response = await apiService.post(
-        "/context/verbs",
+        "/context/verbs/",
         {"context": context},
       );
 
