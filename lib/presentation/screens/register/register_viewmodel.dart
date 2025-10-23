@@ -1,136 +1,117 @@
-import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 class RegisterViewModel extends ChangeNotifier {
-  // --- Control general del flujo ---
-  bool isSaving = false;
-  String? userEmail; // ahora se usa el correo como identificador
+  // --- Usuario / Autenticación ---
+  String userEmail = '';
+  String email = '';
+  String password = '';
 
   // --- Datos personales ---
   String nombre = '';
   String fechaNacimiento = '';
   String lugarNacimiento = '';
-  String direccion = '';
+  String ciudadResidencia = '';
 
   // --- Familia ---
-  List<String> hijos = [];
-  String pareja = '';
+  List<Map<String, String>> familiares = [];
 
   // --- Rutinas ---
-  String comidaFavorita = '';
-  String actividadFavorita = '';
-  String mascota = '';
+  List<Map<String, String>> rutinas = [];
 
-  // =====================================================
-  //                 MÉTODOS DE ACTUALIZACIÓN
-  // =====================================================
+  // --- Objetos ---
+  List<Map<String, String>> objetos = [];
+
+  // =============================================================
+  // ==================== MÉTODOS DE ACTUALIZACIÓN ===============
+  // =============================================================
+
+  void setAuthData({required String email, required String password}) {
+    this.email = email.trim();
+    this.password = password.trim();
+    userEmail = email.trim(); // mantener consistencia con otros usos
+    notifyListeners();
+  }
 
   void updatePersonal({
     required String nombre,
     required String fechaNacimiento,
     required String lugarNacimiento,
-    required String direccion,
+    required String ciudadResidencia,
   }) {
-    this.nombre = nombre;
-    this.fechaNacimiento = fechaNacimiento;
-    this.lugarNacimiento = lugarNacimiento;
-    this.direccion = direccion;
+    this.nombre = nombre.trim();
+    this.fechaNacimiento = fechaNacimiento.trim();
+    this.lugarNacimiento = lugarNacimiento.trim();
+    this.ciudadResidencia = ciudadResidencia.trim();
     notifyListeners();
   }
 
   void updateFamilia({
-    required List<String> hijos,
-    required String pareja,
+    required List<Map<String, String>> familiares,
   }) {
-    this.hijos = hijos;
-    this.pareja = pareja;
+    this.familiares = familiares;
     notifyListeners();
   }
 
   void updateRutinas({
-    required String comidaFavorita,
-    required String actividadFavorita,
-    required String mascota,
+    required List<Map<String, String>> rutinas,
   }) {
-    this.comidaFavorita = comidaFavorita;
-    this.actividadFavorita = actividadFavorita;
-    this.mascota = mascota;
+    this.rutinas = rutinas;
     notifyListeners();
   }
 
-  // =====================================================
-  //                    ESTRUCTURA JSON
-  // =====================================================
-
-  Map<String, dynamic> toJson() {
-    return {
-      "email": userEmail,
-      "personal": {
-        "nombre": nombre,
-        "fecha_nacimiento": fechaNacimiento,
-        "lugar_nacimiento": lugarNacimiento,
-        "direccion": direccion,
-      },
-      "familia": {
-        "hijos": hijos,
-        "pareja": pareja,
-      },
-      "rutinas": {
-        "comida_favorita": comidaFavorita,
-        "actividad_favorita": actividadFavorita,
-      },
-      "objetos": {
-        "mascota": {"nombre": mascota},
-      },
-    };
-  }
-
-  // =====================================================
-  //                  GUARDAR EN FIREBASE
-  // =====================================================
-
-  Future<void> saveToFirebase() async {
-    if (userEmail == null || userEmail!.isEmpty) {
-      throw Exception("userEmail no definido");
-    }
-
-    isSaving = true;
+  void updateObjetos({
+    required List<Map<String, String>> objetos,
+  }) {
+    this.objetos = objetos;
     notifyListeners();
-
-    try {
-      final profileData = toJson();
-
-      await FirebaseFirestore.instance
-          .collection('pacientes')
-          .doc(userEmail) // el email será el ID del documento
-          .set(profileData);
-
-      debugPrint("✅ Perfil de paciente guardado con éxito en Firebase.");
-    } catch (e) {
-      debugPrint("❌ Error al guardar paciente: $e");
-      rethrow;
-    } finally {
-      isSaving = false;
-      notifyListeners();
-    }
   }
-
-  // =====================================================
-  //                    REINICIAR ESTADO
-  // =====================================================
 
   void reset() {
+    email = '';
+    password = '';
+    userEmail = '';
     nombre = '';
     fechaNacimiento = '';
     lugarNacimiento = '';
-    direccion = '';
-    hijos = [];
-    pareja = '';
-    comidaFavorita = '';
-    actividadFavorita = '';
-    mascota = '';
-    userEmail = null;
-    isSaving = false;
+    ciudadResidencia = '';
+    familiares = [];
+    rutinas = [];
+    objetos = [];
     notifyListeners();
+  }
+
+  // =============================================================
+  // ===================== CONSTRUCCIÓN PERFIL ===================
+  // =============================================================
+
+  Map<String, dynamic> buildProfileData() {
+    return {
+      "email": email,
+      "password": password,
+      "nombre": nombre,
+      "fecha_nacimiento": fechaNacimiento,
+      "lugar_nacimiento": lugarNacimiento,
+      "ciudad_residencia": ciudadResidencia,
+      "familia": familiares.map((f) {
+        return {
+          "nombre": f["nombre"] ?? "",
+          "tipo_relacion": f["tipo_relacion"] ?? "",
+          "descripcion": f["descripcion"] ?? "",
+        };
+      }).toList(),
+      "rutinas": rutinas.map((r) {
+        return {
+          "titulo": r["titulo"] ?? "",
+          "descripcion": r["descripcion"] ?? "",
+        };
+      }).toList(),
+      "objetos": objetos.map((o) {
+        return {
+          "nombre": o["nombre"] ?? "",
+          "descripcion": o["descripcion"] ?? "",
+          "tipo_relacion": o["tipo_relacion"] ?? "",
+        };
+      }).toList(),
+    };
   }
 }

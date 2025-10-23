@@ -110,8 +110,10 @@ class _RegisterMainScreenState extends State<RegisterMainScreen> {
               return;
             }
 
-            // Guardar correo en el ViewModel
-            registerVM.userEmail = email;
+            // ✅ Guardar correo en el ViewModel y forzar notificación
+            final registerVM = Provider.of<RegisterViewModel>(context, listen: false);
+            registerVM.setAuthData(email: email, password: '');
+            registerVM.notifyListeners(); // <-- 🔥 fuerza actualización inmediata
 
             // Ir a pantalla de datos personales
             Navigator.pushNamed(context, '/register-personal');
@@ -133,6 +135,7 @@ class _RegisterMainScreenState extends State<RegisterMainScreen> {
             ),
           ),
         ),
+
 
         const SizedBox(height: 16),
 

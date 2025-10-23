@@ -80,16 +80,36 @@ class _SRExercisesScreenState extends State<SRExercisesScreen> {
 
   // === Carga de tarjetas ===
   Future<void> _loadCards() async {
-    final user_email = Provider.of<RegisterViewModel>(context, listen: false).userEmail;
-    if (user_email!.isEmpty) return;
+    final userEmail = Provider.of<RegisterViewModel>(context, listen: false).userEmail;
+    if (userEmail!.isEmpty) return;
 
     try {
-      final snap = await FirebaseFirestore.instance
-          .collection("sr_cards")
-          .where("user_id", isEqualTo: user_email)
+      // 1️⃣ Obtener IDs de ejercicios asignados al paciente
+      final asignadosSnap = await FirebaseFirestore.instance
+          .collection("pacientes")
+          .doc(userEmail)
+          .collection("ejercicios_asignados")
           .get();
 
-      final data = snap.docs.map((d) => {"id": d.id, ...d.data()}).toList();
+      final idsAsignados = asignadosSnap.docs
+          .map((doc) => doc.data()["id_ejercicio"] as String?)
+          .where((id) => id != null && id.isNotEmpty)
+          .toList();
+
+      if (idsAsignados.isEmpty) {
+        setState(() {
+          loading = false;
+        });
+        return;
+      }
+
+      // 2️⃣ Traer los ejercicios SR correspondientes
+      final ejerciciosSnap = await FirebaseFirestore.instance
+          .collection("ejercicios_SR")
+          .where("id_ejercicio_general", whereIn: idsAsignados)
+          .get();
+
+      final data = ejerciciosSnap.docs.map((d) => {"id": d.id, ...d.data()}).toList();
 
       if (data.isEmpty) {
         setState(() {
@@ -98,6 +118,7 @@ class _SRExercisesScreenState extends State<SRExercisesScreen> {
         return;
       }
 
+      // 3️⃣ Establecer el primer ejercicio
       final first = data.first;
       setState(() {
         cards = data;
@@ -105,9 +126,9 @@ class _SRExercisesScreenState extends State<SRExercisesScreen> {
         cardState = {
           ...first,
           "baseline_index": -1,
-          "interval_index": 0,
-          "success_streak": 0,
-          "lapses": 0,
+          "interval_index": first["interval_index"] ?? 0,
+          "success_streak": first["success_streak"] ?? 0,
+          "lapses": first["lapses"] ?? 0,
           "last_answer_correct": null,
           "last_timer_index": null,
         };
@@ -115,17 +136,19 @@ class _SRExercisesScreenState extends State<SRExercisesScreen> {
         loading = false;
       });
     } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Error cargando tarjetas: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error cargando ejercicios: $e")),
+      );
       setState(() => loading = false);
     }
   }
+
 
   // === Submit respuesta ===
   void handleSubmit() async {
     if (currentCard == null || cardState == null) return;
     final userAns = answerCtrl.text.trim().toLowerCase();
-    final correctAns = (currentCard!["answer"] ?? "").trim().toLowerCase();
+    final correctAns = (currentCard!["rta_correcta"] ?? "").trim().toLowerCase(); 
     final isCorrect = userAns == correctAns;
 
     answerCtrl.clear();
@@ -154,12 +177,12 @@ class _SRExercisesScreenState extends State<SRExercisesScreen> {
       secondsLeft = intervals[nextIndex];
       feedback = isCorrect
           ? "✅ Correcto"
-          : "❌ Incorrecto. Respuesta: ${currentCard!["answer"]}";
+          : "❌ Incorrecto. Respuesta: ${currentCard!["rta_correcta"]}"; // 🔹 antes "answer"
       mode = "timer";
     });
 
     await FirebaseFirestore.instance
-        .collection("sr_cards")
+        .collection("ejercicios_SR") // 🔹 antes "sr_cards"
         .doc(currentCard!["id"])
         .update({
       "interval_index": updated["interval_index"],
@@ -309,7 +332,7 @@ class _SRExercisesScreenState extends State<SRExercisesScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              currentCard!["stimulus"] ?? "Sin pregunta",
+                              currentCard!["pregunta"] ?? "Sin pregunta", 
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 fontSize: 22,

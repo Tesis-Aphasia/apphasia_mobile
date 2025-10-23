@@ -1,3 +1,4 @@
+import 'package:aphasia_mobile/presentation/screens/personalization/personalize_exercises_screen.dart';
 import 'package:flutter/material.dart';
 import '../presentation/screens/register/register_main_screen.dart';
 import '../presentation/screens/register/register_personal_screen.dart';
@@ -91,8 +92,10 @@ class AppRouter {
       case '/sr':
         return MaterialPageRoute(builder: (_) => const SRExercisesScreen());
 
-
-
+      case '/personalize-exercises':
+        return MaterialPageRoute(
+          builder: (_) => const PersonalizeExercisesScreen(),
+        );
 
 
     // --- Fallback (ruta no encontrada) ---

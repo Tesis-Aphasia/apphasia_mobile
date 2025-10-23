@@ -100,7 +100,7 @@ class _VnestSelectVerbScreenState extends State<VnestSelectVerbScreen> {
 
     try {
       final response = await apiService.post(
-        '/context/',
+        '/get_exercise_context/',
         {
           "context": widget.context,
           "nivel": "facil",
