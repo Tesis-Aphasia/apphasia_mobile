@@ -41,15 +41,20 @@ class _VnestSelectVerbScreenState extends State<VnestSelectVerbScreen> {
     });
 
     try {
+      final registerVM = Provider.of<RegisterViewModel>(context, listen: false);
+      final email = registerVM.userEmail; // ✅ obtenemos el correo del paciente
+
       final response = await apiService.post(
         '/context/verbs/',
-        {"context": widget.context},
+        {
+          "context": widget.context,
+          "email": email, // ✅ ahora se envía al backend
+        },
       );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data['verbs'] ?? [];
 
-        // Cada verbo puede venir como {'verbo': 'comer', 'highlight': true/false}
         final parsed = data.map<Map<String, dynamic>>((v) {
           if (v is Map) {
             return {
@@ -60,7 +65,6 @@ class _VnestSelectVerbScreenState extends State<VnestSelectVerbScreen> {
           return {"verbo": v.toString(), "highlight": false};
         }).toList();
 
-        // Eliminar duplicados
         final unique = {
           for (var v in parsed) v["verbo"]: v,
         }.values.toList();
@@ -85,6 +89,7 @@ class _VnestSelectVerbScreenState extends State<VnestSelectVerbScreen> {
       setState(() => loading = false);
     }
   }
+
 
   // ============================
   // 🔹 PEDIR EJERCICIO DEL VERBO
