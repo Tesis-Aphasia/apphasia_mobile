@@ -12,7 +12,8 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _idCtrl = TextEditingController();
+  final TextEditingController _emailCtrl = TextEditingController();
+  final TextEditingController _passwordCtrl = TextEditingController();
   bool _isLoading = false;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -42,7 +43,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Ingresa tu identificador para continuar.',
+                    'Inicia sesión con tu correo y contraseña.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,
@@ -51,12 +52,30 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 48),
 
-                  // Campo identificador
+                  // Campo email
                   TextField(
-                    controller: _idCtrl,
+                    controller: _emailCtrl,
+                    keyboardType: TextInputType.emailAddress,
                     decoration: InputDecoration(
-                      labelText: 'Identificador',
-                      hintText: 'Escribe tu identificador',
+                      labelText: 'Correo electrónico',
+                      hintText: 'ejemplo@correo.com',
+                      filled: true,
+                      fillColor: Colors.orange.shade50,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Campo contraseña
+                  TextField(
+                    controller: _passwordCtrl,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: 'Contraseña',
+                      hintText: 'Ingresa tu contraseña',
                       filled: true,
                       fillColor: Colors.orange.shade50,
                       border: OutlineInputBorder(
@@ -72,12 +91,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: _isLoading
                         ? null
                         : () async {
-                      final userId = _idCtrl.text.trim();
+                      final email = _emailCtrl.text.trim();
+                      final password = _passwordCtrl.text.trim();
 
-                      if (userId.isEmpty) {
+                      if (email.isEmpty || password.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Por favor ingresa tu identificador'),
+                            content: Text('Completa todos los campos'),
                           ),
                         );
                         return;
@@ -86,30 +106,51 @@ class _LoginScreenState extends State<LoginScreen> {
                       setState(() => _isLoading = true);
 
                       try {
-                        // Buscar en Firestore si existe el usuario
-                        final snapshot = await _firestore
+                        // 1️⃣ Autenticación con Firebase
+                        final userCredential =
+                        await _auth.signInWithEmailAndPassword(
+                          email: email,
+                          password: password,
+                        );
+
+                        final user = userCredential.user;
+                        if (user == null) {
+                          throw Exception('Error al iniciar sesión.');
+                        }
+
+                        // 2️⃣ Verificar que el usuario exista en la colección pacientes
+                        final docSnap = await _firestore
                             .collection('pacientes')
-                            .doc(userId)
+                            .doc(user.uid)
                             .get();
 
-                        if (!snapshot.exists) {
+                        if (!docSnap.exists) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Usuario no encontrado. Regístrate primero.'),
+                              content: Text(
+                                  'No tienes perfil creado. Regístrate primero.'),
                             ),
                           );
+                          await _auth.signOut();
                           setState(() => _isLoading = false);
                           return;
                         }
 
-                        // Si existe, iniciar sesión (o simplemente continuar)
-                        registerVM.userEmail = userId;
-                        await Future.delayed(const Duration(milliseconds: 500));
+                        // 3️⃣ Guardar info en el ViewModel
+                        registerVM.userEmail = email;
+                        registerVM.userId = user.uid;
 
+                        // 4️⃣ Continuar a la app
                         Navigator.pushReplacementNamed(context, '/menu');
-                      } on FirebaseException catch (e) {
+                      } on FirebaseAuthException catch (e) {
+                        String message = 'Error al iniciar sesión';
+                        if (e.code == 'user-not-found') {
+                          message = 'Usuario no encontrado';
+                        } else if (e.code == 'wrong-password') {
+                          message = 'Contraseña incorrecta';
+                        }
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Error de Firebase: ${e.message}')),
+                          SnackBar(content: Text(message)),
                         );
                       } catch (e) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -139,6 +180,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
 
+                  // Enlace a registro
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

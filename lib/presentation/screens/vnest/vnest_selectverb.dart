@@ -96,7 +96,7 @@ class _VnestSelectVerbScreenState extends State<VnestSelectVerbScreen> {
   // ============================
   Future<void> requestExercise(String verbo) async {
     final registerVM = Provider.of<RegisterViewModel>(context, listen: false);
-    final email = registerVM.userEmail;
+    final userId = registerVM.userId;
 
     setState(() {
       loadingExercise = true;
@@ -110,7 +110,7 @@ class _VnestSelectVerbScreenState extends State<VnestSelectVerbScreen> {
           "context": widget.context,
           "nivel": "facil",
           "verbo": verbo,
-          "email": email,
+          "user_id": userId,
         },
       );
 

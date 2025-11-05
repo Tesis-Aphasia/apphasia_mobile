@@ -104,7 +104,7 @@ Future<void> generatePersonalized() async {
   }
 
   final registerVM = Provider.of<RegisterViewModel>(context, listen: false);
-  final email = registerVM.userEmail;
+  final userId = registerVM.userId;
 
   setState(() {
     loading = true;
@@ -115,7 +115,7 @@ Future<void> generatePersonalized() async {
     // Cargar perfil completo del paciente desde Firestore
     final profileSnap = await FirebaseFirestore.instance
         .collection('pacientes')
-        .doc(email)
+        .doc(userId)
         .get();
     final profileData = profileSnap.data() ?? {};
 
@@ -131,7 +131,7 @@ Future<void> generatePersonalized() async {
       await apiService.post(
         "/personalize-exercise/",
         {
-          "user_id": email,
+          "user_id": userId,
           "exercise_id": exerciseId,
           "profile": profileData,
         },

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 class RegisterViewModel extends ChangeNotifier {
   // --- Usuario / Autenticación ---
+  String userId = '';
   String userEmail = '';
   String email = '';
   String password = '';
@@ -79,6 +80,12 @@ class RegisterViewModel extends ChangeNotifier {
     objetos = [];
     notifyListeners();
   }
+
+  void setUserId(String id) {
+    userId = id;
+    notifyListeners();
+  }
+
 
   // =============================================================
   // ===================== CONSTRUCCIÓN PERFIL ===================

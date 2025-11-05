@@ -11,21 +11,14 @@ class VnestConclusionScreen extends StatelessWidget {
   Future<void> _completeExercise(BuildContext context) async {
     final registerVM = Provider.of<RegisterViewModel>(context, listen: false);
     final apiService = ApiService();
-    final email = registerVM.userEmail;
+    final userId = registerVM.userId;
 
     final idEjercicio = exercise['id_ejercicio_general'] ?? "";
     final contexto = exercise['context'] ?? exercise['contexto'] ?? "";
 
-    if (email == null || email.isEmpty || idEjercicio.isEmpty || contexto.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Faltan datos para completar el ejercicio.")),
-      );
-      return;
-    }
-
     try {
       final response = await apiService.post('/completar_ejercicio/', {
-        "email": email,
+        "user_id": userId,
         "id_ejercicio": idEjercicio,
         "contexto": contexto,
       });

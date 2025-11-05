@@ -234,10 +234,8 @@ class _RegisterRoutineScreenState extends State<RegisterRoutineScreen> {
                     ElevatedButton(
                       onPressed: _isLoading
                           ? null
-                          : () => _processWithIA(
-                                _infoIA.text.trim(),
-                                registerVM.userEmail ?? "",
-                              ),
+                          : () => _processWithIA(_infoIA.text.trim(), registerVM.userId),
+
                       style: ElevatedButton.styleFrom(
                         backgroundColor: orange,
                         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -333,37 +331,10 @@ class _RegisterRoutineScreenState extends State<RegisterRoutineScreen> {
 
                               final profileData = registerVM.buildProfileData();
 
-                              // 1️⃣ Guardar paciente en Firestore
-                              await FirebaseFirestore.instance
-                                  .collection("pacientes")
-                                  .doc(registerVM.userEmail)
-                                  .set(profileData);
-
-                              // 2️⃣ Generar ejercicios SR
-                              try {
-                                final response = await apiService.post(
-                                  "/spaced-retrieval/",
-                                  {
-                                    "user_id": registerVM.userEmail,
-                                    "profile": profileData,
-                                  },
-                                );
-
-                                if (response.statusCode == 200) {
-                                  debugPrint("✅ SR cards creadas correctamente");
-                                } else {
-                                  debugPrint(
-                                      "⚠️ Backend respondió con ${response.statusCode}");
-                                }
-                              } catch (e) {
-                                debugPrint("❌ Error al llamar al backend: $e");
-                              }
-
-                              // 3️⃣ Continuar al éxito
                               if (mounted) {
                                 setState(() => _isLoading = false);
                                 Navigator.pushReplacementNamed(
-                                    context, '/register-main-success');
+                                    context, '/register-summary');
                               }
                             },
                       style: ElevatedButton.styleFrom(

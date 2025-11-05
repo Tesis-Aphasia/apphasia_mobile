@@ -80,14 +80,15 @@ class _SRExercisesScreenState extends State<SRExercisesScreen> {
 
   // === Carga de tarjetas ===
   Future<void> _loadCards() async {
-    final userEmail = Provider.of<RegisterViewModel>(context, listen: false).userEmail;
-    if (userEmail!.isEmpty) return;
+    final userId = Provider.of<RegisterViewModel>(context, listen: false).userId;
+    if (userId == null || userId.isEmpty) return;
+
 
     try {
       // 1️⃣ Obtener IDs de ejercicios asignados al paciente
       final asignadosSnap = await FirebaseFirestore.instance
           .collection("pacientes")
-          .doc(userEmail)
+          .doc(userId)
           .collection("ejercicios_asignados")
           .get();
 

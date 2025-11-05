@@ -11,7 +11,9 @@ class RegisterMainScreen extends StatefulWidget {
 }
 
 class _RegisterMainScreenState extends State<RegisterMainScreen> {
-  final TextEditingController _idCtrl = TextEditingController();
+  final TextEditingController _emailCtrl = TextEditingController();
+  final TextEditingController _passwordCtrl = TextEditingController();
+  bool _showPassword = false;
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +25,6 @@ class _RegisterMainScreenState extends State<RegisterMainScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // --- Logo Rehabilita ---
               Padding(
                 padding: const EdgeInsets.only(top: 20, bottom: 40),
                 child: Center(
@@ -39,7 +40,6 @@ class _RegisterMainScreenState extends State<RegisterMainScreen> {
                   ),
                 ),
               ),
-
               Expanded(
                 child: widget.showSuccess
                     ? _buildSuccessContent(context)
@@ -53,7 +53,7 @@ class _RegisterMainScreenState extends State<RegisterMainScreen> {
   }
 
   // ===========================================================
-  //             INICIO DE REGISTRO CON ID PACIENTE
+  //              REGISTRO CON EMAIL Y CONTRASEÑA
   // ===========================================================
   Widget _buildIntroContent(BuildContext context) {
     final registerVM = Provider.of<RegisterViewModel>(context, listen: false);
@@ -72,7 +72,7 @@ class _RegisterMainScreenState extends State<RegisterMainScreen> {
         ),
         const SizedBox(height: 12),
         Text(
-          'Completa tu correo electrónico para continuar.',
+          'Completa tu correo y contraseña para continuar.',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 16,
@@ -83,11 +83,11 @@ class _RegisterMainScreenState extends State<RegisterMainScreen> {
 
         // --- Campo de correo ---
         TextField(
-          controller: _idCtrl,
+          controller: _emailCtrl,
           keyboardType: TextInputType.emailAddress,
           decoration: InputDecoration(
             labelText: 'Correo electrónico',
-            hintText: 'Ejemplo: paciente@gmail.com',
+            hintText: 'ejemplo@correo.com',
             filled: true,
             fillColor: Colors.orange.shade50,
             border: OutlineInputBorder(
@@ -96,12 +96,39 @@ class _RegisterMainScreenState extends State<RegisterMainScreen> {
             ),
           ),
         ),
+        const SizedBox(height: 16),
+
+        // --- Campo de contraseña ---
+        TextField(
+          controller: _passwordCtrl,
+          obscureText: !_showPassword,
+          decoration: InputDecoration(
+            labelText: 'Contraseña',
+            hintText: 'Mínimo 6 caracteres',
+            filled: true,
+            fillColor: Colors.orange.shade50,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            suffixIcon: IconButton(
+              icon: Icon(
+                _showPassword ? Icons.visibility_off : Icons.visibility,
+                color: Colors.orange.shade700,
+              ),
+              onPressed: () {
+                setState(() => _showPassword = !_showPassword);
+              },
+            ),
+          ),
+        ),
         const SizedBox(height: 24),
 
         // --- Botón principal ---
         ElevatedButton(
           onPressed: () {
-            final email = _idCtrl.text.trim();
+            final email = _emailCtrl.text.trim();
+            final password = _passwordCtrl.text.trim();
 
             if (email.isEmpty || !emailRegex.hasMatch(email)) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -109,13 +136,17 @@ class _RegisterMainScreenState extends State<RegisterMainScreen> {
               );
               return;
             }
+            if (password.length < 6) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('La contraseña debe tener al menos 6 caracteres.')),
+              );
+              return;
+            }
 
-            // ✅ Guardar correo en el ViewModel y forzar notificación
-            final registerVM = Provider.of<RegisterViewModel>(context, listen: false);
-            registerVM.setAuthData(email: email, password: '');
-            registerVM.notifyListeners(); // <-- 🔥 fuerza actualización inmediata
+            // ✅ Guardar datos en el ViewModel
+            registerVM.setAuthData(email: email, password: password);
 
-            // Ir a pantalla de datos personales
+            // Ir a la pantalla de datos personales
             Navigator.pushNamed(context, '/register-personal');
           },
           style: ElevatedButton.styleFrom(
@@ -127,7 +158,7 @@ class _RegisterMainScreenState extends State<RegisterMainScreen> {
             ),
           ),
           child: const Text(
-            'Comenzar',
+            'Continuar',
             style: TextStyle(
               color: Colors.white,
               fontSize: 18,
@@ -135,15 +166,13 @@ class _RegisterMainScreenState extends State<RegisterMainScreen> {
             ),
           ),
         ),
-
-
         const SizedBox(height: 16),
 
         // --- Botón secundario ---
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text(
-            'Cancelar / Volver',
+            'Cancelar',
             style: TextStyle(
               color: Colors.orange.shade600,
               fontSize: 16,
@@ -155,7 +184,6 @@ class _RegisterMainScreenState extends State<RegisterMainScreen> {
     );
   }
 
-
   // ===========================================================
   //               CONFIRMACIÓN DE REGISTRO EXITOSO
   // ===========================================================
@@ -163,7 +191,6 @@ class _RegisterMainScreenState extends State<RegisterMainScreen> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Ícono circular
         Container(
           width: 100,
           height: 100,
@@ -197,8 +224,6 @@ class _RegisterMainScreenState extends State<RegisterMainScreen> {
           ),
         ),
         const SizedBox(height: 40),
-
-        // --- Botón principal ---
         ElevatedButton(
           onPressed: () {
             Navigator.pushReplacementNamed(context, '/menu');
@@ -220,31 +245,6 @@ class _RegisterMainScreenState extends State<RegisterMainScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 16),
-
-        // // --- Botón secundario ---
-        // OutlinedButton(
-        //   onPressed: () {
-        //     Navigator.popUntil(context, ModalRoute.withName('/landing'));
-        //   },
-        //   style: OutlinedButton.styleFrom(
-        //     backgroundColor: Colors.orange.shade50,
-        //     side: BorderSide.none,
-        //     padding: const EdgeInsets.symmetric(vertical: 16),
-        //     minimumSize: const Size(double.infinity, 50),
-        //     shape: RoundedRectangleBorder(
-        //       borderRadius: BorderRadius.circular(12),
-        //     ),
-        //   ),
-        //   child: Text(
-        //     'Volver al inicio',
-        //     style: TextStyle(
-        //       color: Colors.orange.shade700,
-        //       fontWeight: FontWeight.bold,
-        //       fontSize: 16,
-        //     ),
-        //   ),
-        // ),
       ],
     );
   }

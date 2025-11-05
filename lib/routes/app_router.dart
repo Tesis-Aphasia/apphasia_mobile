@@ -4,6 +4,7 @@ import '../presentation/screens/register/register_main_screen.dart';
 import '../presentation/screens/register/register_personal_screen.dart';
 import '../presentation/screens/register/register_family_screen.dart';
 import '../presentation/screens/register/register_routine_screen.dart';
+import '../presentation/screens/register/register_summary_screen.dart';
 import '../presentation/screens/login/login_screen.dart';
 import '../presentation/screens/menu/menu_screen.dart';
 import '../presentation/screens/landing/landing_screen.dart';
@@ -14,6 +15,7 @@ import '../presentation/screens/vnest/vnest_actionselection.dart';
 import '../presentation/screens/vnest/vnest_sentenceevaluation.dart';
 import '../presentation/screens/vnest/vnest_sentenceexpansion.dart';
 import '../presentation/screens/vnest/vnest_selectverb.dart';
+
 
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -39,6 +41,9 @@ class AppRouter {
         return MaterialPageRoute(
           builder: (_) => const RegisterMainScreen(showSuccess: true),
         );
+      case '/register-summary':
+        return MaterialPageRoute(builder: (_) => const RegisterSummaryScreen());
+
 
     // --- Login y Menú ---
       case '/login':

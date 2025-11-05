@@ -34,10 +34,9 @@ class LandingScreen extends StatelessWidget {
               ),
               const SizedBox(height: 60),
 
-              // --- Botón principal (registrarse) ---
               ElevatedButton(
                 onPressed: () {
-                  Navigator.pushNamed(context, '/register-main');
+                  Navigator.pushNamed(context, '/login');
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.orange.shade700,
@@ -47,7 +46,7 @@ class LandingScreen extends StatelessWidget {
                   ),
                 ),
                 child: const Text(
-                  'Registrarse',
+                  'Iniciar sesión',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -57,10 +56,9 @@ class LandingScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // --- Botón secundario (login) ---
               OutlinedButton(
                 onPressed: () {
-                  Navigator.pushNamed(context, '/login');
+                  Navigator.pushNamed(context, '/register-main');
                 },
                 style: OutlinedButton.styleFrom(
                   backgroundColor: Colors.orange.shade50,
@@ -71,7 +69,7 @@ class LandingScreen extends StatelessWidget {
                   ),
                 ),
                 child: Text(
-                  'Iniciar sesión',
+                  'Registrarse',
                   style: TextStyle(
                     color: Colors.orange.shade700,
                     fontSize: 18,

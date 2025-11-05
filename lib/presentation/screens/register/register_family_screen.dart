@@ -273,10 +273,8 @@ class _RegisterFamilyScreenState extends State<RegisterFamilyScreen> {
                       ElevatedButton(
                         onPressed: _isLoading
                             ? null
-                            : () => _processWithIA(
-                                  _infoIA.text.trim(),
-                                  registerVM.userEmail ?? "",
-                                ),
+                            : () => _processWithIA(_infoIA.text.trim(), registerVM.userId),
+
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange.shade700,
                           padding: const EdgeInsets.symmetric(vertical: 14),
