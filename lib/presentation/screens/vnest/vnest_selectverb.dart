@@ -1,13 +1,13 @@
-import 'package:aphasia_mobile/presentation/screens/register/register_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:dio/dio.dart';
-import '../../../data/services/api_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../../screens/register/register_viewmodel.dart';
 
 class VnestSelectVerbScreen extends StatefulWidget {
-  final String context; // Contexto seleccionado desde la pantalla anterior
+  final String vnestContext;
 
-  const VnestSelectVerbScreen({super.key, required this.context});
+  const VnestSelectVerbScreen({super.key, required this.vnestContext});
 
   @override
   State<VnestSelectVerbScreen> createState() => _VnestSelectVerbScreenState();
@@ -17,22 +17,44 @@ class _VnestSelectVerbScreenState extends State<VnestSelectVerbScreen> {
   final background = const Color(0xFFFEF9F4);
   final orange = const Color(0xFFFF8A00);
 
-  final ApiService apiService = ApiService();
-
   bool loading = false;
   bool loadingExercise = false;
   String? error;
-  List<Map<String, dynamic>> verbs = []; // ✅ verbo + highlight
+  List<Map<String, dynamic>> verbs = [];
   String? selectedVerb;
 
   @override
   void initState() {
     super.initState();
-    fetchVerbs();
+    fetchVerbs(); // directo desde Firestore
   }
 
   // ============================
-  // 🔹 OBTENER VERBOS DEL CONTEXTO
+  // 🔹 Resolver doc del paciente (uid/email/campo email)
+  // ============================
+  Future<String?> _resolvePacienteDocId({String? uid, String? email}) async {
+    final col = FirebaseFirestore.instance.collection('pacientes');
+
+    if (email != null && email.isNotEmpty) {
+      final byEmailId = await col.doc(email).get();
+      if (byEmailId.exists) return byEmailId.id;
+    }
+
+    if (uid != null && uid.isNotEmpty) {
+      final byUid = await col.doc(uid).get();
+      if (byUid.exists) return byUid.id;
+    }
+
+    if (email != null && email.isNotEmpty) {
+      final q = await col.where('email', isEqualTo: email).limit(1).get();
+      if (q.docs.isNotEmpty) return q.docs.first.id;
+    }
+
+    return null;
+  }
+
+  // ============================
+  // 🔹 Obtener verbos + marcar highlight
   // ============================
   Future<void> fetchVerbs() async {
     setState(() {
@@ -42,107 +64,305 @@ class _VnestSelectVerbScreenState extends State<VnestSelectVerbScreen> {
 
     try {
       final registerVM = Provider.of<RegisterViewModel>(context, listen: false);
-      final email = registerVM.userEmail; // ✅ obtenemos el correo del paciente
+      final email = registerVM.userEmail;
+      final uid = registerVM.userId;
 
-      final response = await apiService.post(
-        '/context/verbs/',
-        {
-          "context": widget.context,
-          "email": email, // ✅ ahora se envía al backend
-        },
-      );
+      // 1️⃣ Traer ejercicios VNEST del contexto
+      final vnestSnap = await FirebaseFirestore.instance
+          .collection('ejercicios_VNEST')
+          .where('contexto', isEqualTo: widget.vnestContext)
+          .get();
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = response.data['verbs'] ?? [];
+      final vnestList = vnestSnap.docs.map((d) {
+        final m = d.data();
+        return {
+          ...m,
+          '_id': d.id,
+          'verbo': m['verbo'],
+          'id_ejercicio_general': m['id_ejercicio_general'] ?? d.id,
+        };
+      }).where((e) => (e['verbo'] ?? '').toString().isNotEmpty).toList();
 
-        final parsed = data.map<Map<String, dynamic>>((v) {
-          if (v is Map) {
-            return {
-              "verbo": v["verbo"],
-              "highlight": v["highlight"] ?? false,
-            };
+      final Map<String, Map<String, dynamic>> verbsDict = {
+        for (final ex in vnestList)
+          ex['verbo']: {
+            'verbo': ex['verbo'],
+            'highlight': false,
+            'id_ejercicio_general': ex['id_ejercicio_general'],
           }
-          return {"verbo": v.toString(), "highlight": false};
-        }).toList();
+      };
 
-        final unique = {
-          for (var v in parsed) v["verbo"]: v,
-        }.values.toList();
+      // 2️⃣ Resolver paciente
+      final pacienteDocId = await _resolvePacienteDocId(uid: uid, email: email);
 
-        setState(() {
-          verbs = unique;
-        });
-      } else {
-        throw Exception("Error HTTP ${response.statusCode}");
+      if (pacienteDocId != null) {
+        // 3️⃣ Leer asignados pendientes del contexto VNEST
+        final asignadosSnap = await FirebaseFirestore.instance
+            .collection('pacientes')
+            .doc(pacienteDocId)
+            .collection('ejercicios_asignados')
+            .where('tipo', isEqualTo: 'VNEST')
+            .where('contexto', isEqualTo: widget.vnestContext)
+            .where('personalizado', isEqualTo: true)
+            .where('estado', isEqualTo: 'pendiente')
+            .get();
+
+        final pendientesIds = asignadosSnap.docs
+            .map((d) => (d.data()['id_ejercicio'] ?? '').toString())
+            .where((s) => s.isNotEmpty)
+            .toSet();
+
+        if (pendientesIds.isNotEmpty) {
+          final verbosPendientes = <String>{};
+          for (final ex in vnestList) {
+            final ids = {ex['_id'], ex['id_ejercicio_general']}
+                .whereType<String>()
+                .toSet();
+            if (ids.any((id) => pendientesIds.contains(id))) {
+              final verbo = ex['verbo'];
+              if (verbo is String && verbo.isNotEmpty) {
+                verbosPendientes.add(verbo);
+              }
+            }
+          }
+          for (final vb in verbosPendientes) {
+            if (verbsDict.containsKey(vb)) {
+              verbsDict[vb]!['highlight'] = true;
+            }
+          }
+        }
       }
-    } on DioException catch (e) {
+
       setState(() {
-        error = e.response != null
-            ? "Error ${e.response?.statusCode}: ${e.response?.data}"
-            : "Error de conexión: ${e.message}";
+        verbs = verbsDict.values.toList();
       });
     } catch (e) {
-      setState(() {
-        error = e.toString();
-      });
+      setState(() => error = e.toString());
     } finally {
       setState(() => loading = false);
     }
   }
 
-
   // ============================
-  // 🔹 PEDIR EJERCICIO DEL VERBO
+  // 🔹 Obtener ejercicio directamente desde Firestore
   // ============================
-  Future<void> requestExercise(String verbo) async {
-    final registerVM = Provider.of<RegisterViewModel>(context, listen: false);
-    final userId = registerVM.userId;
-
+  Future<void> openExercise(String verbo) async {
     setState(() {
       loadingExercise = true;
       error = null;
     });
 
     try {
-      final response = await apiService.post(
-        '/get_exercise_context/',
-        {
-          "context": widget.context,
-          "nivel": "facil",
-          "verbo": verbo,
-          "user_id": userId,
-        },
-      );
+      final registerVM = Provider.of<RegisterViewModel>(context, listen: false);
+      final userId = registerVM.userId;
+      final fs = FirebaseFirestore.instance;
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = Map<String, dynamic>.from(response.data);
+      final pacienteRef = fs.collection("pacientes").doc(userId);
+      final asignadosRef = pacienteRef.collection("ejercicios_asignados");
 
-        Navigator.pushNamed(
-          context,
-          '/vnest-action',
-          arguments: {
-            ...data,
-            'context': widget.context,
-            'verbo': verbo,
-          },
-        );
-      } else {
-        throw Exception("Error HTTP ${response.statusCode}");
+      // ========== Helpers ==========
+      Future<bool> _isPersonalizedForVnestDoc(DocumentSnapshot<Map<String, dynamic>> vnDoc) async {
+        final data = vnDoc.data() ?? {};
+        final generalId = (data['id_ejercicio_general'] ?? '') as String;
+        if (generalId.isEmpty) return (data['personalizado'] ?? false) == true;
+        final base = await fs.collection('ejercicios').doc(generalId).get();
+        if (!base.exists) return (data['personalizado'] ?? false) == true;
+        final baseData = base.data() ?? {};
+        return (baseData['personalizado'] ?? false) == true;
       }
-    } on DioException catch (e) {
-      setState(() {
-        error = e.response != null
-            ? "Error ${e.response?.statusCode}: ${e.response?.data}"
-            : "Error de conexión: ${e.message}";
+
+      int _priorityOf(Map<String, dynamic> a) {
+        final p = a['prioridad'];
+        if (p is int) return p;
+        if (p is num) return p.toInt();
+        return 999999;
+      }
+
+      // 1) Buscar asignados del contexto (tipo VNEST)
+      final asignadosSnap = await asignadosRef
+          .where("contexto", isEqualTo: widget.vnestContext)
+          .where("tipo", isEqualTo: "VNEST")
+          .get();
+
+      final asignados = <Map<String, dynamic>>[];
+      for (final d in asignadosSnap.docs) {
+        final m = d.data();
+        // Join con VNEST para filtrar por verbo
+        final exId = (m['id_ejercicio'] ?? '').toString();
+        if (exId.isEmpty) continue;
+        final vnDoc = await fs.collection('ejercicios_VNEST').doc(exId).get();
+        if (!vnDoc.exists) continue;
+        final vn = vnDoc.data() ?? {};
+        if ((vn['verbo'] ?? '') != verbo) continue;
+
+        // Resolver personalizado (preferir flag en asignado; si no, mirar ejercicio base)
+        bool personalizado = (m['personalizado'] ?? false) == true;
+        if (!personalizado) {
+          personalizado = await _isPersonalizedForVnestDoc(vnDoc);
+        }
+
+        asignados.add({
+          ...m,
+          '_vn': vn,
+          '_vnId': vnDoc.id,
+          '_personalizado': personalizado,
+        });
+      }
+
+      // 2) Pendientes: personalizados primero, luego prioridad asc
+      final pendientes = asignados.where((e) => e['estado'] == 'pendiente').toList()
+        ..sort((a, b) {
+          final ap = (a['_personalizado'] == true) ? 0 : 1;
+          final bp = (b['_personalizado'] == true) ? 0 : 1;
+          if (ap != bp) return ap - bp;
+          return _priorityOf(a).compareTo(_priorityOf(b));
+        });
+
+      if (pendientes.isNotEmpty) {
+        final chosen = pendientes.first;
+        final vn = Map<String, dynamic>.from(chosen['_vn'] as Map);
+        final vnId = chosen['_vnId'] as String;
+
+        Navigator.pushNamed(context, '/vnest-action', arguments: {
+          ...vn,
+          'context': widget.vnestContext,
+          'verbo': verbo,
+          'id_ejercicio_general': vn['id_ejercicio_general'] ?? vnId,
+        });
+        return;
+      }
+
+      // 3) Buscar VNEST del verbo en el contexto
+      final allVnestSnap = await fs
+          .collection('ejercicios_VNEST')
+          .where('contexto', isEqualTo: widget.vnestContext)
+          .where('verbo', isEqualTo: verbo)
+          .get();
+
+      if (allVnestSnap.docs.isEmpty) {
+        throw Exception("No se encontró ejercicio de '$verbo' en este contexto.");
+      }
+
+      final asignadosIds = asignadosSnap.docs.map((d) => d.data()['id_ejercicio'].toString()).toSet();
+      // VNEST no asignados aún
+      final noAsignadosDocs = allVnestSnap.docs.where((d) => !asignadosIds.contains(d.id)).toList();
+
+      // Helper para etiquetar personalizados
+      Future<List<DocumentSnapshot<Map<String, dynamic>>>> _sortPersonalizedFirst(
+        List<DocumentSnapshot<Map<String, dynamic>>> docs,
+      ) async {
+        final withFlag = <Map<String, dynamic>>[];
+        for (final d in docs) {
+          withFlag.add({
+            'doc': d,
+            'personalizado': await _isPersonalizedForVnestDoc(d),
+          });
+        }
+        withFlag.sort((a, b) {
+          final ap = (a['personalizado'] == true) ? 0 : 1;
+          final bp = (b['personalizado'] == true) ? 0 : 1;
+          return ap - bp;
+        });
+        return withFlag.map((e) => e['doc'] as DocumentSnapshot<Map<String, dynamic>>).toList();
+      }
+
+      // 4) Si hay no asignados → elegir personalizados primero
+      if (noAsignadosDocs.isNotEmpty) {
+        final ordered = await _sortPersonalizedFirst(noAsignadosDocs);
+        // dentro de cada bucket (personalizado/público) puedes aleatorizar si quieres:
+        // ordered.shuffle();  // si prefieres aleatorio puro tras priorizar personalizados
+
+        final chosenDoc = ordered.first;
+        final chosenData = chosenDoc.data() ?? {};
+        final idEjercicio = chosenDoc.id;
+        final contexto = chosenData['contexto'] ?? widget.vnestContext;
+
+        // calcular prioridad = max + 1
+        final allAsg = await asignadosRef.get();
+        final prioridades = allAsg.docs
+            .map((d) => d.data()['prioridad'])
+            .whereType<num>()
+            .map((n) => n.toInt())
+            .toList();
+        final nextPriority = prioridades.isEmpty ? 1 : (prioridades.reduce((a, b) => a > b ? a : b) + 1);
+
+        final personalizedFlag = await _isPersonalizedForVnestDoc(chosenDoc);
+
+        // Asignar si no existe
+        final existe = await asignadosRef.doc(idEjercicio).get();
+        if (!existe.exists) {
+          await asignadosRef.doc(idEjercicio).set({
+            "id_ejercicio": idEjercicio,
+            "contexto": contexto,
+            "tipo": "VNEST",
+            "estado": "pendiente",
+            "prioridad": nextPriority,
+            "ultima_fecha_realizado": null,
+            "veces_realizado": 0,
+            "fecha_asignacion": FieldValue.serverTimestamp(),
+            "personalizado": personalizedFlag,
+          });
+        }
+
+        Navigator.pushNamed(context, '/vnest-action', arguments: {
+          ...chosenData,
+          'context': widget.vnestContext,
+          'verbo': verbo,
+          'id_ejercicio_general': chosenData['id_ejercicio_general'] ?? idEjercicio,
+        });
+        return;
+      }
+
+      // 5) Si no hay nuevos → elegir completado más antiguo (personalizado primero)
+      final completados = asignados.where((e) => e['estado'] == 'completado').toList()
+        ..sort((a, b) {
+          final ap = (a['_personalizado'] == true) ? 0 : 1;
+          final bp = (b['_personalizado'] == true) ? 0 : 1;
+          if (ap != bp) return ap - bp;
+          final ta = a['ultima_fecha_realizado'];
+          final tb = b['ultima_fecha_realizado'];
+          // nulls al final
+          if (ta == null && tb == null) return 0;
+          if (ta == null) return 1;
+          if (tb == null) return -1;
+          // más antiguo primero
+          return (ta as Timestamp).compareTo(tb as Timestamp);
+        });
+
+      if (completados.isNotEmpty) {
+        final old = completados.first;
+        final oldId = (old['id_ejercicio'] ?? '').toString();
+        final oldVnDoc = await fs.collection('ejercicios_VNEST').doc(oldId).get();
+        if (oldVnDoc.exists) {
+          final vn = oldVnDoc.data() ?? {};
+          Navigator.pushNamed(context, '/vnest-action', arguments: {
+            ...vn,
+            'context': widget.vnestContext,
+            'verbo': verbo,
+            'id_ejercicio_general': vn['id_ejercicio_general'] ?? oldVnDoc.id,
+          });
+          return;
+        }
+      }
+
+      // 6) Fallback: abrir cualquiera (no debería ocurrir si hay docs)
+      final fallback = allVnestSnap.docs.first;
+      final fb = fallback.data() ?? {};
+      Navigator.pushNamed(context, '/vnest-action', arguments: {
+        ...fb,
+        'context': widget.vnestContext,
+        'verbo': verbo,
+        'id_ejercicio_general': fb['id_ejercicio_general'] ?? fallback.id,
       });
     } catch (e) {
-      setState(() {
-        error = e.toString();
-      });
+      setState(() => error = e.toString());
     } finally {
       setState(() => loadingExercise = false);
     }
   }
+
+
+
 
   // ============================
   // 🔹 INTERFAZ
@@ -150,9 +370,8 @@ class _VnestSelectVerbScreenState extends State<VnestSelectVerbScreen> {
   @override
   Widget build(BuildContext context) {
     final isLoading = loading || loadingExercise;
-    final loadingText = loading
-        ? "Cargando verbos…"
-        : (loadingExercise ? "Cargando ejercicio…" : "");
+    final loadingText =
+        loading ? "Cargando verbos…" : (loadingExercise ? "Abriendo ejercicio…" : "");
 
     return Scaffold(
       backgroundColor: background,
@@ -240,14 +459,14 @@ class _VnestSelectVerbScreenState extends State<VnestSelectVerbScreen> {
   // 🔹 OPCIÓN DE VERBO
   // ============================
   Widget _buildVerbOption(Map<String, dynamic> verbData) {
-    final verbo = verbData["verbo"] ?? "";
-    final highlight = verbData["highlight"] ?? false;
+    final verbo = (verbData["verbo"] ?? "").toString();
+    final highlight = (verbData["highlight"] ?? false) == true;
     final isSelected = selectedVerb == verbo;
 
     return InkWell(
       onTap: () async {
         setState(() => selectedVerb = verbo);
-        await requestExercise(verbo);
+        await openExercise(verbo);
       },
       borderRadius: BorderRadius.circular(16),
       child: Container(
@@ -278,7 +497,6 @@ class _VnestSelectVerbScreenState extends State<VnestSelectVerbScreen> {
         ),
         child: Row(
           children: [
-            // Ícono (bombillo o play)
             Container(
               width: 48,
               height: 48,

@@ -104,8 +104,7 @@ class _VnestSelectContextScreenState extends State<VnestSelectContextScreen> {
                                     id: c['contexto'],
                                     icon: c['icon'],
                                     title: c['contexto'],
-                                  ),
-                                _buildCustomOption(),
+                                  )
                               ],
                             ),
                     ),
@@ -212,39 +211,6 @@ class _VnestSelectContextScreenState extends State<VnestSelectContextScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildCustomOption() {
-    final isSelected = selectedContext == "custom";
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isSelected ? orange.withOpacity(0.1) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isSelected ? orange : Colors.grey.shade300,
-          width: 2,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.edit_note_rounded, color: orange),
-          const SizedBox(width: 16),
-          Expanded(
-            child: TextField(
-              onTap: () => setState(() => selectedContext = "custom"),
-              onChanged: (value) => setState(() => customContext = value),
-              decoration: const InputDecoration(
-                hintText: "Escribe tu propio contexto...",
-                border: InputBorder.none,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

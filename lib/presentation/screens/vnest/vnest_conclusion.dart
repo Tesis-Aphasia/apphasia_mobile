@@ -1,5 +1,5 @@
-import 'package:aphasia_mobile/data/services/api_service.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../register/register_viewmodel.dart';
 
@@ -8,28 +8,42 @@ class VnestConclusionScreen extends StatelessWidget {
 
   const VnestConclusionScreen({super.key, required this.exercise});
 
+  // ================================
+  // 🔹 Completar ejercicio directamente en Firestore
+  // ================================
   Future<void> _completeExercise(BuildContext context) async {
     final registerVM = Provider.of<RegisterViewModel>(context, listen: false);
-    final apiService = ApiService();
     final userId = registerVM.userId;
+    final firestore = FirebaseFirestore.instance;
 
     final idEjercicio = exercise['id_ejercicio_general'] ?? "";
     final contexto = exercise['context'] ?? exercise['contexto'] ?? "";
 
     try {
-      final response = await apiService.post('/completar_ejercicio/', {
-        "user_id": userId,
-        "id_ejercicio": idEjercicio,
-        "contexto": contexto,
-      });
+      final pacienteRef = firestore.collection("pacientes").doc(userId);
+      final ejerciciosRef = pacienteRef.collection("ejercicios_asignados");
 
-      if (response.statusCode == 200 && response.data["status"] == "success") {
+      final query = await ejerciciosRef
+          .where("id_ejercicio", isEqualTo: idEjercicio)
+          .where("contexto", isEqualTo: contexto)
+          .limit(1)
+          .get();
+
+      if (query.docs.isNotEmpty) {
+        final doc = query.docs.first.reference;
+        await doc.update({
+          "estado": "completado",
+          "ultima_fecha_realizado": FieldValue.serverTimestamp(),
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("✅ Ejercicio completado con éxito")),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("⚠️ ${response.data["message"] ?? "Error al completar"}")),
+          const SnackBar(
+            content: Text("⚠️ Ejercicio no encontrado en tus asignaciones."),
+          ),
         );
       }
     } catch (e) {
@@ -152,32 +166,24 @@ class VnestConclusionScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 30),
-              AnimatedOpacity(
-                opacity: 1,
-                duration: const Duration(milliseconds: 600),
-                child: Column(
-                  children: [
-                    Icon(Icons.celebration_rounded, color: orange, size: 60),
-                    const SizedBox(height: 10),
-                    Text(
-                      "¡Felicidades!",
-                      style: TextStyle(
-                        color: orange,
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      "Has completado el ejercicio de VNeST.",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.black54,
-                      ),
-                    ),
-                  ],
+              Icon(Icons.celebration_rounded, color: orange, size: 60),
+              const SizedBox(height: 10),
+              Text(
+                "¡Felicidades!",
+                style: TextStyle(
+                  color: orange,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                "Has completado el ejercicio de VNeST.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.black54,
                 ),
               ),
               const SizedBox(height: 40),
@@ -209,8 +215,10 @@ class VnestConclusionScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _buildInfoRow("Contexto", exercise['context'] ?? exercise['contexto'] ?? "—"),
-                    _buildInfoRow("Pareja", "${exercise['who'] ?? ""} + ${exercise['what'] ?? ""}"),
+                    _buildInfoRow(
+                        "Contexto", exercise['context'] ?? exercise['contexto'] ?? "—"),
+                    _buildInfoRow(
+                        "Pareja", "${exercise['who'] ?? ""} + ${exercise['what'] ?? ""}"),
                     _buildInfoRow("Verbo trabajado", exercise['verbo'] ?? ""),
                   ],
                 ),
@@ -252,7 +260,8 @@ class VnestConclusionScreen extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: () async {
                     await _completeExercise(context);
-                    Navigator.pushNamedAndRemoveUntil(context, '/menu', (route) => false);
+                    Navigator.pushNamedAndRemoveUntil(
+                        context, '/menu', (route) => false);
                   },
                   icon: const Icon(Icons.refresh_rounded, color: Colors.white),
                   label: const Text(

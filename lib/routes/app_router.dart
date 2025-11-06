@@ -57,15 +57,18 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const VnestSelectContextScreen());
 
     // --- VNEST Fase 1: Selección de verbo ---
-      case '/vnest-verb':
+      case '/vnest-verb': {
         final args = settings.arguments as Map<String, dynamic>?;
-        if (args == null || !args.containsKey('context')) {
-          return _errorRoute("Faltan los datos del contexto (args nulos)");
+        if (args == null || args['context'] == null || args['context'] is! String) {
+          return _errorRoute("Faltan los datos del contexto (args['context']).");
         }
         return MaterialPageRoute(
-          builder: (_) => VnestSelectVerbScreen(context: args['context']),
+          builder: (_) => VnestSelectVerbScreen(
+            vnestContext: args['context'] as String, // <-- nombre correcto
+          ),
         );
-
+      }
+      
     // --- VNEST Fase 1: Selección de acción (¿quién? y ¿qué?) ---
       case '/vnest-action':
         final args = settings.arguments as Map<String, dynamic>?;
@@ -75,12 +78,26 @@ class AppRouter {
         return MaterialPageRoute(
           builder: (_) => VnestActionSelectionScreen(exercise: args),
         );
-    // --- VNEST Fase 2: Expansión de Oración) ---
+        
+    // --- VNEST Fase 2: Expansión de Oración (3 pantallas) ---
       case '/vnest-phase2':
         final args = Map<String, dynamic>.from(settings.arguments as Map);
         return MaterialPageRoute(
-          builder: (_) => VnestSentenceExpansionScreen(data: args),
+          builder: (_) => VnestWhereScreen(data: args),
         );
+
+      case '/vnest-why':
+        final args = Map<String, dynamic>.from(settings.arguments as Map);
+        return MaterialPageRoute(
+          builder: (_) => VnestWhyScreen(data: args),
+        );
+
+      case '/vnest-when':
+        final args = Map<String, dynamic>.from(settings.arguments as Map);
+        return MaterialPageRoute(
+          builder: (_) => VnestWhenScreen(data: args),
+        );
+
 
       case '/vnest-phase3':
         final args = Map<String, dynamic>.from(settings.arguments as Map);
