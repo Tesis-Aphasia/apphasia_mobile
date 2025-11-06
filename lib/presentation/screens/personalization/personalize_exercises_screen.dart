@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -316,7 +315,7 @@ class _PersonalizeExercisesScreenState
       ),
       bottomNavigationBar: _BottomBar(
         background: background,
-        purple: purple,
+        purple: Colors.blue.shade400,
         isGenerating: isGenerating,
         canGoToExercise: canGoToExercise,
         canGenerate: canGenerate,
@@ -341,7 +340,7 @@ class _PersonalizeExercisesScreenState
                 _ContextChips(
                   contexts: contexts,
                   selected: selectedContext,
-                  purple: purple,
+                  purple: Colors.blue.shade400,
                   onTap: (ctx) {
                     setState(() => selectedContext = ctx);
                     fetchVerbsForContext(ctx);
@@ -402,7 +401,7 @@ class _PersonalizeExercisesScreenState
                     canGoToExercise = false;
                   });
                 },
-          activeColor: purple,
+          activeColor: Colors.blue.shade400,
           title: Row(
             children: [
               Flexible(
@@ -413,7 +412,7 @@ class _PersonalizeExercisesScreenState
               if (highlight)
                 Padding(
                   padding: const EdgeInsets.only(left: 6),
-                  child: Icon(Icons.tips_and_updates, color: purple, size: 18),
+                  child: Icon(Icons.tips_and_updates, color: Colors.blue.shade400, size: 18),
                 ),
             ],
           ),
@@ -466,9 +465,9 @@ class _ContextChips extends StatelessWidget {
                   fontWeight: FontWeight.w700)),
           selected: isSelected,
           onSelected: (_) => onTap(ctx),
-          selectedColor: purple,
+          selectedColor: Colors.blue.shade400,
           side:
-              BorderSide(color: isSelected ? purple : Colors.grey.shade300),
+              BorderSide(color: isSelected ? Colors.blue.shade400 : Colors.grey.shade300),
           backgroundColor: Colors.white,
         );
       }).toList(),
@@ -551,7 +550,7 @@ class _BottomBar extends StatelessWidget {
               ? null
               : (canGoToExercise ? onGo : onGenerate),
           style: ElevatedButton.styleFrom(
-            backgroundColor: purple,
+            backgroundColor: Colors.blue.shade400,
             foregroundColor: Colors.white,
             minimumSize: const Size(double.infinity, 52),
             shape: RoundedRectangleBorder(

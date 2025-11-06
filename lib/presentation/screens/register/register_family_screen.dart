@@ -32,6 +32,9 @@ class _RegisterFamilyScreenState extends State<RegisterFamilyScreen> {
   bool _showConfirmation = false;
   String recognizedText = "";
 
+  // control de edición local
+  int? editingIndex;
+
   @override
   void initState() {
     super.initState();
@@ -49,8 +52,9 @@ class _RegisterFamilyScreenState extends State<RegisterFamilyScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content:
-                Text("Por favor habilita el micrófono para usar reconocimiento de voz.")),
+          content: Text(
+              "Por favor habilita el micrófono para usar reconocimiento de voz."),
+        ),
       );
     }
   }
@@ -83,11 +87,15 @@ class _RegisterFamilyScreenState extends State<RegisterFamilyScreen> {
         'tipo_relacion': parentescos.first,
         'descripcion': '',
       });
+      editingIndex = familiares.length - 1;
     });
   }
 
   void _eliminarFamiliar(int index) {
-    setState(() => familiares.removeAt(index));
+    setState(() {
+      familiares.removeAt(index);
+      if (editingIndex == index) editingIndex = null;
+    });
   }
 
   Future<void> _processWithIA(String text, String userId) async {
@@ -124,8 +132,8 @@ class _RegisterFamilyScreenState extends State<RegisterFamilyScreen> {
             };
           }).toList();
           _showConfirmation = true;
+          editingIndex = null;
         });
-
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Información familiar completada con IA ✅")),
@@ -273,8 +281,8 @@ class _RegisterFamilyScreenState extends State<RegisterFamilyScreen> {
                       ElevatedButton(
                         onPressed: _isLoading
                             ? null
-                            : () => _processWithIA(_infoIA.text.trim(), registerVM.userId),
-
+                            : () => _processWithIA(
+                                _infoIA.text.trim(), registerVM.userId),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange.shade700,
                           padding: const EdgeInsets.symmetric(vertical: 14),
@@ -341,103 +349,178 @@ class _RegisterFamilyScreenState extends State<RegisterFamilyScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // --- Lista de familiares ---
-                Column(
-                  children: familiares.map((familiar) {
-                    final index = familiares.indexOf(familiar);
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(
-                            children: [
-                              // Nombre
-                              Expanded(
-                                flex: 3,
-                                child: TextField(
-                                  decoration: const InputDecoration(
-                                    hintText: 'Nombre del familiar',
-                                    border: InputBorder.none,
+                // --- Tarjetas de familiares ---
+                if (familiares.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 40),
+                    child: Column(
+                      children: [
+                        Icon(Icons.group_outlined,
+                            size: 60, color: Colors.orange.shade300),
+                        const SizedBox(height: 12),
+                        const Text(
+                          "Aún no has agregado familiares",
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          "Puedes añadirlos manualmente o usar la IA para detectarlos.",
+                          style: TextStyle(
+                              color: Colors.black54, fontSize: 14),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Column(
+                    children: List.generate(familiares.length, (index) {
+                      final f = familiares[index];
+                      final isEditing = editingIndex == index;
+
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.08),
+                              blurRadius: 6,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                          border: Border.all(
+                            color: isEditing
+                                ? Colors.orange.shade200
+                                : Colors.grey.shade200,
+                            width: 1.3,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.shade50,
+                                    shape: BoxShape.circle,
                                   ),
-                                  controller: TextEditingController(
-                                      text: familiar['nombre']),
-                                  onChanged: (value) =>
-                                      familiares[index]['nombre'] = value,
+                                  child: const Icon(Icons.person_rounded,
+                                      color: Color(0xFFFF8A00), size: 26),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    f["nombre"]?.isNotEmpty == true
+                                        ? f["nombre"]!
+                                        : "Sin nombre",
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    isEditing
+                                        ? Icons.check_circle_rounded
+                                        : Icons.edit_rounded,
+                                    color: isEditing
+                                        ? Colors.orange
+                                        : Colors.grey,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      editingIndex = isEditing ? null : index;
+                                    });
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline,
+                                      color: Colors.redAccent),
+                                  onPressed: () => _eliminarFamiliar(index),
+                                ),
+                              ],
+                            ),
+                            if (isEditing) ...[
+                              const SizedBox(height: 12),
+                              TextField(
+                                decoration: const InputDecoration(
+                                  labelText: "Nombre",
+                                  border: OutlineInputBorder(),
+                                ),
+                                controller:
+                                    TextEditingController(text: f["nombre"]),
+                                onChanged: (v) => f["nombre"] = v,
+                              ),
+                              const SizedBox(height: 10),
+                              DropdownButtonFormField<String>(
+                                value: f["tipo_relacion"] ?? parentescos.first,
+                                items: parentescos
+                                    .map((p) => DropdownMenuItem(
+                                          value: p,
+                                          child: Text(p),
+                                        ))
+                                    .toList(),
+                                onChanged: (val) =>
+                                    f["tipo_relacion"] = val ?? parentescos.first,
+                                decoration: const InputDecoration(
+                                  labelText: "Parentesco",
+                                  border: OutlineInputBorder(),
                                 ),
                               ),
-                              // Tipo de relación
-                              Expanded(
-                                flex: 3,
-                                child: DropdownButtonFormField<String>(
-                                  value: familiares[index]['tipo_relacion'] ??
-                                      parentescos.first,
-                                  decoration: const InputDecoration(
-                                    border: InputBorder.none,
-                                  ),
-                                  items: parentescos.map((p) {
-                                    return DropdownMenuItem(
-                                      value: p,
-                                      child: Text(p),
-                                    );
-                                  }).toList(),
-                                  onChanged: (value) => setState(() =>
-                                      familiares[index]['tipo_relacion'] =
-                                          value!),
+                              const SizedBox(height: 10),
+                              TextField(
+                                maxLines: 2,
+                                decoration: const InputDecoration(
+                                  labelText: "Descripción (opcional)",
+                                  border: OutlineInputBorder(),
                                 ),
-                              ),
-                              // Botón eliminar
-                              IconButton(
-                                onPressed: () => _eliminarFamiliar(index),
-                                icon: Icon(Icons.delete_outline,
-                                    color: Colors.red.shade400),
+                                controller:
+                                    TextEditingController(text: f["descripcion"]),
+                                onChanged: (v) => f["descripcion"] = v,
                               ),
                             ],
-                          ),
-                          const SizedBox(height: 8),
-                          // Descripción
-                          TextField(
-                            controller: TextEditingController(
-                                text: familiar['descripcion']),
-                            decoration: const InputDecoration(
-                              hintText:
-                                  'Descripción (Ej: vive conmigo, me ayuda en terapias...)',
-                              border: InputBorder.none,
-                            ),
-                            onChanged: (value) =>
-                                familiares[index]['descripcion'] = value,
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ),
+
+                const SizedBox(height: 20),
 
                 // --- Botón agregar familiar ---
-                OutlinedButton.icon(
-                  onPressed: _agregarFamiliar,
-                  icon: Icon(Icons.add, color: Colors.orange.shade700),
-                  label: Text(
-                    'Agregar Familiar',
-                    style: TextStyle(
-                      color: Colors.orange.shade800,
-                      fontWeight: FontWeight.bold,
+                Center(
+                  child: ElevatedButton.icon(
+                    onPressed: _agregarFamiliar,
+                    icon:
+                        const Icon(Icons.add_rounded, color: Colors.white),
+                    label: const Text(
+                      'Agregar Familiar',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: Colors.orange.shade50,
-                    side: BorderSide.none,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF8A00),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                   ),
                 ),
+
                 const SizedBox(height: 20),
 
                 // --- Botones inferiores ---
@@ -449,7 +532,8 @@ class _RegisterFamilyScreenState extends State<RegisterFamilyScreen> {
                         style: OutlinedButton.styleFrom(
                           backgroundColor: Colors.grey.shade200,
                           side: BorderSide.none,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -468,11 +552,13 @@ class _RegisterFamilyScreenState extends State<RegisterFamilyScreen> {
                       child: ElevatedButton(
                         onPressed: () {
                           registerVM.updateFamilia(familiares: familiares);
-                          Navigator.pushNamed(context, '/register-routine');
+                          Navigator.pushNamed(
+                              context, '/register-routine');
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange.shade700,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),

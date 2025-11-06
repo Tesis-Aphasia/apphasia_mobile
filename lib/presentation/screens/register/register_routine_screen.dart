@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:permission_handler/permission_handler.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../data/services/api_service.dart';
 import '../register/register_viewmodel.dart';
 
@@ -19,13 +18,16 @@ class _RegisterRoutineScreenState extends State<RegisterRoutineScreen> {
 
   bool _isLoading = false;
   bool _showConfirmation = false;
+  bool _isListening = false;
 
   List<Map<String, String>> rutinas = [];
   List<Map<String, String>> objetos = [];
 
-  // === SPEECH TO TEXT ===
+  // --- Control de edición local ---
+  int? editingRutinaIndex;
+  int? editingObjetoIndex;
+
   late stt.SpeechToText _speech;
-  bool _isListening = false;
 
   @override
   void initState() {
@@ -41,9 +43,7 @@ class _RegisterRoutineScreenState extends State<RegisterRoutineScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            "Por favor habilita el micrófono para usar reconocimiento de voz.",
-          ),
+          content: Text("Por favor habilita el micrófono para usar reconocimiento de voz."),
         ),
       );
     }
@@ -70,20 +70,17 @@ class _RegisterRoutineScreenState extends State<RegisterRoutineScreen> {
   Future<void> _processWithIA(String text, String userId) async {
     if (text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Por favor ingresa o graba información para procesar."),
-        ),
+        const SnackBar(content: Text("Por favor ingresa o graba información para procesar.")),
       );
       return;
     }
 
     setState(() => _isLoading = true);
-
     try {
-      final response = await apiService.post(
-        "/profile/structure/",
-        {"user_id": userId, "raw_text": text},
-      );
+      final response = await apiService.post("/profile/structure/", {
+        "user_id": userId,
+        "raw_text": text,
+      });
 
       if (response.statusCode == 200) {
         final data = response.data["structured_profile"] ?? {};
@@ -125,12 +122,33 @@ class _RegisterRoutineScreenState extends State<RegisterRoutineScreen> {
     }
   }
 
-  void _agregarRutina() => setState(() => rutinas.add({"titulo": "", "descripcion": ""}));
-  void _eliminarRutina(int index) => setState(() => rutinas.removeAt(index));
+  void _agregarRutina() {
+    setState(() {
+      rutinas.add({"titulo": "", "descripcion": ""});
+      editingRutinaIndex = rutinas.length - 1;
+    });
+  }
 
-  void _agregarObjeto() =>
-      setState(() => objetos.add({"nombre": "", "descripcion": "", "tipo_relacion": ""}));
-  void _eliminarObjeto(int index) => setState(() => objetos.removeAt(index));
+  void _eliminarRutina(int index) {
+    setState(() {
+      rutinas.removeAt(index);
+      if (editingRutinaIndex == index) editingRutinaIndex = null;
+    });
+  }
+
+  void _agregarObjeto() {
+    setState(() {
+      objetos.add({"nombre": "", "descripcion": "", "tipo_relacion": ""});
+      editingObjetoIndex = objetos.length - 1;
+    });
+  }
+
+  void _eliminarObjeto(int index) {
+    setState(() {
+      objetos.removeAt(index);
+      if (editingObjetoIndex == index) editingObjetoIndex = null;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -146,7 +164,7 @@ class _RegisterRoutineScreenState extends State<RegisterRoutineScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // === Encabezado ===
+              // --- Encabezado ---
               Row(
                 children: [
                   IconButton(
@@ -164,105 +182,8 @@ class _RegisterRoutineScreenState extends State<RegisterRoutineScreen> {
               ),
               const SizedBox(height: 20),
 
-              // === BLOQUE IA ===
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50.withOpacity(0.4),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      'Rellena automáticamente con IA',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Pulsa para grabar o escribe sobre tus rutinas y objetos para completar los campos de abajo.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 14, color: Colors.black54),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: ElevatedButton(
-                            onPressed: _isListening ? _stopListening : _startListening,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  _isListening ? Colors.redAccent : Colors.orange.shade600,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 20),
-                            ),
-                            child: Icon(
-                              _isListening ? Icons.stop_rounded : Icons.mic_rounded,
-                              size: 28,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          flex: 5,
-                          child: TextFormField(
-                            controller: _infoIA,
-                            maxLines: 3,
-                            decoration: InputDecoration(
-                              hintText: 'O escribe aquí tu información...',
-                              filled: true,
-                              fillColor: Colors.white,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _isLoading
-                          ? null
-                          : () => _processWithIA(_infoIA.text.trim(), registerVM.userId),
-
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: orange,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 22,
-                              width: 22,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2.5,
-                              ),
-                            )
-                          : const Text(
-                              'Procesar con IA',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                    ),
-                  ],
-                ),
-              ),
+              // --- Bloque IA ---
+              _buildIASection(registerVM, orange),
 
               if (_showConfirmation) ...[
                 const SizedBox(height: 16),
@@ -286,17 +207,37 @@ class _RegisterRoutineScreenState extends State<RegisterRoutineScreen> {
 
               const SizedBox(height: 24),
 
-              // === Rutinas ===
-              _buildSection("Rutinas", rutinas, _agregarRutina, _eliminarRutina, true),
+              // --- Rutinas ---
+              _buildEditableList(
+                title: "Rutinas",
+                items: rutinas,
+                editingIndex: editingRutinaIndex,
+                onAdd: _agregarRutina,
+                onDelete: _eliminarRutina,
+                onEdit: (i) => setState(() {
+                  editingRutinaIndex = (editingRutinaIndex == i) ? null : i;
+                }),
+                isRutina: true,
+              ),
 
               const SizedBox(height: 28),
 
-              // === Objetos ===
-              _buildSection("Objetos", objetos, _agregarObjeto, _eliminarObjeto, false),
+              // --- Objetos ---
+              _buildEditableList(
+                title: "Objetos",
+                items: objetos,
+                editingIndex: editingObjetoIndex,
+                onAdd: _agregarObjeto,
+                onDelete: _eliminarObjeto,
+                onEdit: (i) => setState(() {
+                  editingObjetoIndex = (editingObjetoIndex == i) ? null : i;
+                }),
+                isRutina: false,
+              ),
 
               const SizedBox(height: 32),
 
-              // === Botones Final ===
+              // --- Botones Final ---
               Row(
                 children: [
                   Expanded(
@@ -323,19 +264,11 @@ class _RegisterRoutineScreenState extends State<RegisterRoutineScreen> {
                     child: ElevatedButton(
                       onPressed: _isLoading
                           ? null
-                          : () async {
-                              setState(() => _isLoading = true);
-
+                          : () {
                               registerVM.updateRutinas(rutinas: rutinas);
                               registerVM.updateObjetos(objetos: objetos);
-
-                              final profileData = registerVM.buildProfileData();
-
-                              if (mounted) {
-                                setState(() => _isLoading = false);
-                                Navigator.pushReplacementNamed(
-                                    context, '/register-summary');
-                              }
+                              Navigator.pushReplacementNamed(
+                                  context, '/register-summary');
                             },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: orange,
@@ -364,8 +297,114 @@ class _RegisterRoutineScreenState extends State<RegisterRoutineScreen> {
     );
   }
 
-  Widget _buildSection(String title, List<Map<String, String>> items,
-      VoidCallback onAdd, Function(int) onDelete, bool isRutina) {
+  // --- Sección IA ---
+  Widget _buildIASection(RegisterViewModel registerVM, Color orange) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Rellena automáticamente con IA',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Pulsa para grabar o escribe sobre tus rutinas y objetos para completar los campos de abajo.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: Colors.black54),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 2,
+                child: ElevatedButton(
+                  onPressed: _isListening ? _stopListening : _startListening,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        _isListening ? Colors.redAccent : Colors.orange.shade600,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                  ),
+                  child: Icon(
+                    _isListening ? Icons.stop_rounded : Icons.mic_rounded,
+                    size: 28,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 5,
+                child: TextFormField(
+                  controller: _infoIA,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: 'O escribe aquí tu información...',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _isLoading
+                ? null
+                : () => _processWithIA(_infoIA.text.trim(), registerVM.userId),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: orange,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: _isLoading
+                ? const SizedBox(
+                    height: 22,
+                    width: 22,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.5,
+                    ),
+                  )
+                : const Text(
+                    'Procesar con IA',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Tarjetas de edición de rutinas y objetos ---
+  Widget _buildEditableList({
+    required String title,
+    required List<Map<String, String>> items,
+    required int? editingIndex,
+    required VoidCallback onAdd,
+    required Function(int) onDelete,
+    required Function(int) onEdit,
+    required bool isRutina,
+  }) {
     final color = Colors.orange.shade700;
 
     return Column(
@@ -388,69 +427,93 @@ class _RegisterRoutineScreenState extends State<RegisterRoutineScreen> {
         if (items.isEmpty)
           Text("No hay $title aún. Agrega uno nuevo abajo.",
               style: const TextStyle(color: Colors.black54)),
-        ...items.asMap().entries.map((entry) {
-          int index = entry.key;
-          var item = entry.value;
-          return Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            margin: const EdgeInsets.only(bottom: 8),
-            child: ExpansionTile(
-              tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              title: Text(
-                isRutina
-                    ? "Rutina ${index + 1}: ${item["titulo"] ?? "Sin título"}"
-                    : "Objeto ${index + 1}: ${item["nombre"] ?? "Sin nombre"}",
-                style:
-                    const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
+        ...List.generate(items.length, (index) {
+          final item = items[index];
+          final isEditing = editingIndex == index;
+
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.08),
+                  blurRadius: 6,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+              border: Border.all(
+                color: isEditing ? Colors.orange.shade200 : Colors.grey.shade200,
+                width: 1.2,
               ),
-              childrenPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (isRutina) ...[
-                  _buildEditableField(
-                      label: "Título",
-                      value: item["titulo"] ?? "",
-                      onChanged: (v) => rutinas[index]["titulo"] = v),
-                  _buildEditableField(
-                      label: "Descripción",
-                      value: item["descripcion"] ?? "",
-                      onChanged: (v) => rutinas[index]["descripcion"] = v),
-                ] else ...[
-                  _buildEditableField(
-                      label: "Nombre del objeto",
-                      value: item["nombre"] ?? "",
-                      onChanged: (v) => objetos[index]["nombre"] = v),
-                  _buildEditableField(
-                      label: "Tipo de relación",
-                      value: item["tipo_relacion"] ?? "",
-                      onChanged: (v) => objetos[index]["tipo_relacion"] = v),
-                  _buildEditableField(
-                      label: "Descripción",
-                      value: item["descripcion"] ?? "",
-                      onChanged: (v) => objetos[index]["descripcion"] = v),
+                // Header
+                Row(
+                  children: [
+                    Icon(
+                      isRutina ? Icons.access_time_rounded : Icons.inventory_2_rounded,
+                      color: Colors.orange.shade700,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        isRutina
+                            ? (item["titulo"]?.isNotEmpty == true
+                                ? item["titulo"]!
+                                : "Sin título")
+                            : (item["nombre"]?.isNotEmpty == true
+                                ? item["nombre"]!
+                                : "Sin nombre"),
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        isEditing ? Icons.check_circle_rounded : Icons.edit_rounded,
+                        color: isEditing ? Colors.orange : Colors.grey,
+                      ),
+                      onPressed: () => onEdit(index),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                      onPressed: () => onDelete(index),
+                    ),
+                  ],
+                ),
+                if (isEditing) ...[
+                  const SizedBox(height: 10),
+                  if (isRutina) ...[
+                    _editableField("Título", item["titulo"] ?? "",
+                        (v) => items[index]["titulo"] = v),
+                    _editableField("Descripción", item["descripcion"] ?? "",
+                        (v) => items[index]["descripcion"] = v),
+                  ] else ...[
+                    _editableField("Nombre del objeto", item["nombre"] ?? "",
+                        (v) => items[index]["nombre"] = v),
+                    _editableField("Tipo de relación", item["tipo_relacion"] ?? "",
+                        (v) => items[index]["tipo_relacion"] = v),
+                    _editableField("Descripción", item["descripcion"] ?? "",
+                        (v) => items[index]["descripcion"] = v),
+                  ]
                 ],
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: () => onDelete(index),
-                    icon: const Icon(Icons.delete_outline, color: Colors.red),
-                    label:
-                        const Text("Eliminar", style: TextStyle(color: Colors.red)),
-                  ),
-                )
               ],
             ),
           );
-        })
+        }),
       ],
     );
   }
 
-  Widget _buildEditableField({
-    required String label,
-    required String value,
-    required Function(String) onChanged,
-  }) {
+  Widget _editableField(String label, String value, Function(String) onChanged) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: TextField(
