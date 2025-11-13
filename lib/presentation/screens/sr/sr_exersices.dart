@@ -119,21 +119,27 @@ class _SRExercisesScreenState extends State<SRExercisesScreen> {
         return;
       }
 
-      // 3️⃣ Establecer el primer ejercicio
+      // 3️⃣ Establecer el primer ejercicio (SIEMPRE empezar desde el inicio)
       final first = data.first;
+
       setState(() {
         cards = data;
         currentCard = first;
+
+        // Ignoramos interval_index / streak históricos para el estado LOCAL
         cardState = {
           ...first,
           "baseline_index": -1,
-          "interval_index": first["interval_index"] ?? 0,
-          "success_streak": first["success_streak"] ?? 0,
-          "lapses": first["lapses"] ?? 0,
+          "interval_index": 0,          // siempre arrancar en el primer intervalo
+          "success_streak": 0,          // reiniciar racha local
+          "lapses": 0,                  // reiniciar lapsos locales
           "last_answer_correct": null,
           "last_timer_index": null,
         };
+
         mode = "question";
+        feedback = "";
+        secondsLeft = 0;
         loading = false;
       });
     } catch (e) {
